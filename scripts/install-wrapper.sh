@@ -176,6 +176,7 @@ handle_token_invalid() {
   MACF_SYSTEM_ROOT="${SYSTEM_ROOT}" \
   MACF_MULTIAC_DISABLED_NAME="${MULTIAC_DISABLED_NAME}" \
   bash "${TOKEN_INVALID_CLEANUP_SCRIPT}"
+  # 目录删除后的收尾动作统一在外壳脚本执行，避免依赖可能被删除的本地清理脚本继续收尾。
   enforce_multiac_disabled_name
 }
 
