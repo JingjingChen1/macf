@@ -59,7 +59,7 @@ get_token_http_status() {
 
 ## [MODULE] token-invalid-handle
 ## type: flow
-## purpose: 在 token 401 时执行清理，并兼容旧运行时补写 multiAC 禁用名。
+## purpose: 在 token 401 时执行清理，并兼容旧运行时补写 multiAC 禁用态（name + identity.name）。
 ## version_scope: all (latest baseline)
 enforce_multiac_disabled_name() {
   local openclaw_json
@@ -95,9 +95,17 @@ for item in agents:
         break
 if not isinstance(target, dict):
     raise SystemExit(0)
-if str(target.get("name", "")).strip() == disabled_name:
+# 401 禁用态需要同步写入两处展示字段，避免 UI/运行时读取字段不一致。
+identity = target.get("identity")
+if not isinstance(identity, dict):
+    identity = {}
+    target["identity"] = identity
+name_changed = str(target.get("name", "")).strip() != disabled_name
+identity_changed = str(identity.get("name", "")).strip() != disabled_name
+if not name_changed and not identity_changed:
     raise SystemExit(0)
 target["name"] = disabled_name
+identity["name"] = disabled_name
 path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 PY
 }

@@ -22,7 +22,6 @@ AUTO_UPGRADE_MODE="${MACF_AUTO_UPGRADE_MODE:-0}"
 SKIP_OPENCLAW_SYSTEM_UPGRADE="${MACF_SKIP_OPENCLAW_SYSTEM_UPGRADE:-0}"
 UPGRADE_BASELINE_VERSION="${MACF_UPGRADE_BASELINE_VERSION:-v2.4.3}"
 TOKEN_INVALID_CLEANUP_SCRIPT="${MACF_TOKEN_INVALID_CLEANUP_SCRIPT:-${SYSTEM_ROOT}/tools/core-runtime/token-invalid-cleanup.sh}"
-TOKEN_INVALID_DEBUG="${MACF_TOKEN_INVALID_DEBUG:-0}"
 
 ## [MODULE] log
 ## type: flow
@@ -30,15 +29,6 @@ TOKEN_INVALID_DEBUG="${MACF_TOKEN_INVALID_DEBUG:-0}"
 ## version_scope: all (latest baseline)
 log() {
   echo "[MACF-UPDATE-WRAPPER] $*"
-}
-
-## [MODULE] debug-log
-## type: flow
-## purpose: 在开启调试开关时输出 401 排查日志。
-## version_scope: all (latest baseline)
-debug_log() {
-  [[ "${TOKEN_INVALID_DEBUG}" == "1" ]] || return 0
-  echo "[MACF-UPDATE-WRAPPER DEBUG] $*"
 }
 
 ## [MODULE] die
@@ -106,17 +96,13 @@ get_token_http_status() {
 
 ## [MODULE] token-invalid-handle
 ## type: flow
-## purpose: 在 token 401 时执行清理，并兼容旧运行时补写 multiAC 禁用名。
+## purpose: 在 token 401 时执行清理，并兼容旧运行时补写 multiAC 禁用态（name + identity.name）。
 ## version_scope: all (latest baseline)
 enforce_multiac_disabled_name() {
   local openclaw_json
   openclaw_json="${OPENCLAW_JSON/#\~/$HOME}"
-  if [[ ! -f "${openclaw_json}" ]]; then
-    debug_log "openclaw.json 不存在，跳过禁用名补写: ${openclaw_json}"
-    return 0
-  fi
-  local py_out=""
-  if py_out="$(python3 - "${openclaw_json}" "${MULTIAC_DISABLED_NAME}" <<'PY' 2>&1
+  [[ -f "${openclaw_json}" ]] || return 0
+  python3 - "${openclaw_json}" "${MULTIAC_DISABLED_NAME}" <<'PY' >/dev/null 2>&1
 import json
 import os
 import re
@@ -128,7 +114,6 @@ disabled_name = sys.argv[2].strip()
 try:
     data = json.loads(path.read_text(encoding="utf-8"))
 except Exception:
-    print("skip:invalid-openclaw-json")
     raise SystemExit(0)
 agents = data.get("agents", {}).get("list", []) if isinstance(data, dict) else []
 target = None
@@ -146,45 +131,29 @@ for item in agents:
         target = item
         break
 if not isinstance(target, dict):
-    print("skip:multiac-not-found")
     raise SystemExit(0)
-if str(target.get("name", "")).strip() == disabled_name:
-    print("ok:already-disabled")
+# 401 禁用态需要同步写入两处展示字段，避免 UI/运行时读取字段不一致。
+identity = target.get("identity")
+if not isinstance(identity, dict):
+    identity = {}
+    target["identity"] = identity
+name_changed = str(target.get("name", "")).strip() != disabled_name
+identity_changed = str(identity.get("name", "")).strip() != disabled_name
+if not name_changed and not identity_changed:
     raise SystemExit(0)
 target["name"] = disabled_name
+identity["name"] = disabled_name
 path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-print("ok:updated-disabled-name")
 PY
-  )"; then
-    [[ -n "${py_out}" ]] && debug_log "禁用名补写结果: ${py_out}"
-    return 0
-  fi
-  debug_log "禁用名补写执行异常: ${py_out}"
-  return 0
 }
 
 handle_token_invalid() {
-  debug_log "进入 token 401 处理分支。"
-  debug_log "OPENCLAW_JSON=${OPENCLAW_JSON/#\~/$HOME}"
-  debug_log "TOKEN_INVALID_CLEANUP_SCRIPT=${TOKEN_INVALID_CLEANUP_SCRIPT/#\~/$HOME}"
   if [[ -f "${TOKEN_INVALID_CLEANUP_SCRIPT}" ]]; then
-    local cleanup_out=""
-    if cleanup_out="$(
-      MACF_OPENCLAW_JSON="${OPENCLAW_JSON}" \
-      MACF_FRAMEWORK_WORKSPACE="${FRAMEWORK_WS}" \
-      MACF_SYSTEM_ROOT="${SYSTEM_ROOT}" \
-      MACF_MULTIAC_DISABLED_NAME="${MULTIAC_DISABLED_NAME}" \
-      bash "${TOKEN_INVALID_CLEANUP_SCRIPT}" 2>&1
-    )"; then
-      debug_log "cleanup 脚本执行完成，exit=0。"
-      [[ -n "${cleanup_out}" ]] && debug_log "cleanup 输出: ${cleanup_out}"
-    else
-      local cleanup_rc=$?
-      debug_log "cleanup 脚本执行失败，exit=${cleanup_rc}。"
-      [[ -n "${cleanup_out}" ]] && debug_log "cleanup 输出: ${cleanup_out}"
-    fi
-  else
-    debug_log "cleanup 脚本不存在，直接进入补写禁用名兜底。"
+    MACF_OPENCLAW_JSON="${OPENCLAW_JSON}" \
+    MACF_FRAMEWORK_WORKSPACE="${FRAMEWORK_WS}" \
+    MACF_SYSTEM_ROOT="${SYSTEM_ROOT}" \
+    MACF_MULTIAC_DISABLED_NAME="${MULTIAC_DISABLED_NAME}" \
+    bash "${TOKEN_INVALID_CLEANUP_SCRIPT}"
   fi
   # 目录删除后的收尾动作统一在外壳脚本执行，避免依赖可能被删除的本地清理脚本继续收尾。
   enforce_multiac_disabled_name
