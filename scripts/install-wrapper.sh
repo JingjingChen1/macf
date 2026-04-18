@@ -64,7 +64,7 @@ is_runtime_installed() {
   system_root="${SYSTEM_ROOT/#\~/$HOME}"
   openclaw_json="${OPENCLAW_JSON/#\~/$HOME}"
   [[ -f "${system_root}/.macf-version" ]] && return 0
-  [[ -f "${system_root}/tools/core-runtime/uninstall-framework.sh" ]] && return 0
+  [[ -d "${system_root}/tools/core-runtime" ]] && return 0
   [[ -f "${openclaw_json}" ]] || return 1
   python3 - "${openclaw_json}" <<'PY' >/dev/null 2>&1
 import json

@@ -8,7 +8,6 @@ set -euo pipefail
 # - 本脚本默认只允许 flow；若出现 legacy-fix，必须写明修复问题与版本范围。
 # -----------------------------------------------------------------------------
 
-LOCAL_UNINSTALL_SCRIPT="${MACF_LOCAL_UNINSTALL_SCRIPT:-${HOME}/.openclaw/system/tools/core-runtime/uninstall-framework.sh}"
 ASSETS_ROOT="${MACF_ASSETS_ROOT:-${HOME}/macf-assets}"
 OPENCLAW_HOME="${MACF_OPENCLAW_HOME:-${HOME}/.openclaw}"
 OPENCLAW_JSON="${MACF_OPENCLAW_JSON:-${OPENCLAW_HOME}/openclaw.json}"
@@ -195,8 +194,7 @@ backup_private_assets_fallback() {
 ## version_scope: all (latest baseline)
 disable_and_remove_services_fallback() {
   if ! sudo_ready; then
-    warn "当前无 sudo 能力，跳过 systemd 单元清理。"
-    return 0
+    die "缺少可用 sudo/root，无法确保自动升级 systemd 单元被删除。"
   fi
   local units=(
     "${AUTO_UPGRADE_TIMER_NAME}"
@@ -212,6 +210,20 @@ disable_and_remove_services_fallback() {
   run_sudo_if_available rm -f "/etc/systemd/system/${AUTO_UPGRADE_SERVICE_NAME}" || true
   run_sudo_if_available rm -f "/etc/systemd/system/${SYSTEM_SERVICE_NAME}" || true
   run_sudo_if_available systemctl daemon-reload >/dev/null 2>&1 || true
+  run_sudo_if_available systemctl reset-failed "${AUTO_UPGRADE_TIMER_NAME}" >/dev/null 2>&1 || true
+  run_sudo_if_available systemctl reset-failed "${AUTO_UPGRADE_SERVICE_NAME}" >/dev/null 2>&1 || true
+  if systemctl is-enabled "${AUTO_UPGRADE_TIMER_NAME}" >/dev/null 2>&1; then
+    die "自动升级 timer 删除失败：${AUTO_UPGRADE_TIMER_NAME}"
+  fi
+  if systemctl is-enabled "${AUTO_UPGRADE_SERVICE_NAME}" >/dev/null 2>&1; then
+    die "自动升级 service 删除失败：${AUTO_UPGRADE_SERVICE_NAME}"
+  fi
+  if [[ -e "/etc/systemd/system/${AUTO_UPGRADE_TIMER_NAME}" ]]; then
+    die "自动升级 timer 单元文件仍存在：/etc/systemd/system/${AUTO_UPGRADE_TIMER_NAME}"
+  fi
+  if [[ -e "/etc/systemd/system/${AUTO_UPGRADE_SERVICE_NAME}" ]]; then
+    die "自动升级 service 单元文件仍存在：/etc/systemd/system/${AUTO_UPGRADE_SERVICE_NAME}"
+  fi
 }
 
 ## [MODULE] fallback-uninstall-openclaw
@@ -285,10 +297,6 @@ run_fallback_uninstall() {
 ## purpose: 从公开入口统一执行内置卸载流程。
 ## version_scope: all (latest baseline)
 main() {
-  if [[ -f "${LOCAL_UNINSTALL_SCRIPT}" ]]; then
-    warn "检测到本地卸载脚本：${LOCAL_UNINSTALL_SCRIPT}"
-    warn "当前策略已统一为公开仓内置卸载流程，不再依赖本地脚本。"
-  fi
   run_fallback_uninstall
 }
 
