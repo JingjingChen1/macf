@@ -9,6 +9,34 @@ set -euo pipefail
 # -----------------------------------------------------------------------------
 
 LOCAL_UNINSTALL_SCRIPT="${MACF_LOCAL_UNINSTALL_SCRIPT:-${HOME}/.openclaw/system/tools/core-runtime/uninstall-framework.sh}"
+ASSETS_ROOT="${MACF_ASSETS_ROOT:-${HOME}/macf-assets}"
+OPENCLAW_HOME="${MACF_OPENCLAW_HOME:-${HOME}/.openclaw}"
+OPENCLAW_JSON="${MACF_OPENCLAW_JSON:-${OPENCLAW_HOME}/openclaw.json}"
+FRAMEWORK_WS="${MACF_FRAMEWORK_WORKSPACE:-${OPENCLAW_HOME}/workspace/multiAC}"
+SYSTEM_ROOT="${MACF_SYSTEM_ROOT:-${OPENCLAW_HOME}/system}"
+SYSTEM_SERVICE_NAME="${MACF_SYSTEM_SERVICE_NAME:-openclaw-gateway-macf.service}"
+AUTO_UPGRADE_SERVICE_NAME="${MACF_AUTO_UPGRADE_SERVICE_NAME:-macf-auto-upgrade.service}"
+AUTO_UPGRADE_TIMER_NAME="${MACF_AUTO_UPGRADE_TIMER_NAME:-macf-auto-upgrade.timer}"
+BACKUP_ROOT="${MACF_UNINSTALL_BACKUP_ROOT:-${OPENCLAW_HOME}/backups}"
+REMOVE_OPENCLAW_HOME="${MACF_REMOVE_OPENCLAW_HOME:-1}"
+ASSUME_YES="${MACF_UNINSTALL_ASSUME_YES:-0}"
+BACKUP_DIR=""
+
+## [MODULE] log
+## type: flow
+## purpose: 输出卸载流程统一日志。
+## version_scope: all (latest baseline)
+log() {
+  echo "[MACF-UNINSTALL-WRAPPER] $*"
+}
+
+## [MODULE] warn
+## type: flow
+## purpose: 输出卸载流程警告日志。
+## version_scope: all (latest baseline)
+warn() {
+  echo "[MACF-UNINSTALL-WRAPPER WARN] $*" >&2
+}
 
 ## [MODULE] die
 ## type: flow
@@ -19,18 +47,249 @@ die() {
   exit 1
 }
 
+## [MODULE] sudo-ready
+## type: flow
+## purpose: 检测当前环境是否可执行 sudo 系统操作。
+## version_scope: all (latest baseline)
+sudo_ready() {
+  if [[ "${EUID}" == "0" ]]; then
+    return 0
+  fi
+  command -v sudo >/dev/null 2>&1 || return 1
+  sudo -v >/dev/null 2>&1
+}
+
+## [MODULE] run-sudo-if-available
+## type: flow
+## purpose: root/sudo 可用时执行系统命令，不可用则返回失败。
+## version_scope: all (latest baseline)
+run_sudo_if_available() {
+  if [[ "${EUID}" == "0" ]]; then
+    "$@"
+    return 0
+  fi
+  sudo_ready || return 1
+  sudo "$@"
+}
+
+## [MODULE] installed-check
+## type: flow
+## purpose: 检测是否存在可卸载的 MACF/openclaw 运行时。
+## version_scope: all (latest baseline)
+is_macf_runtime_installed() {
+  local markers=(
+    "${SYSTEM_ROOT}/.macf-version"
+    "${SYSTEM_ROOT}/tools"
+    "${FRAMEWORK_WS}"
+    "${OPENCLAW_HOME}/bin/macf-auto-upgrade.sh"
+    "${OPENCLAW_HOME}/macf-auto-upgrade.env"
+  )
+  local marker
+  for marker in "${markers[@]}"; do
+    [[ -e "${marker}" ]] && return 0
+  done
+  [[ -f "${OPENCLAW_JSON}" ]] || return 1
+  python3 - "${OPENCLAW_JSON}" <<'PY' >/dev/null 2>&1
+import json
+import re
+import sys
+from pathlib import Path
+path = Path(sys.argv[1]).expanduser().resolve()
+try:
+    data = json.loads(path.read_text(encoding="utf-8"))
+except Exception:
+    raise SystemExit(1)
+agents = data.get("agents", {}).get("list", []) if isinstance(data, dict) else []
+for item in agents:
+    if not isinstance(item, dict):
+        continue
+    aid = re.sub(r"[^a-z0-9]+", "", str(item.get("id", "")).lower())
+    ws = str(item.get("workspace", ""))
+    name = re.sub(r"[^a-z0-9]+", "", str(item.get("name", "")).lower())
+    ws_base = re.sub(r"[^a-z0-9]+", "", Path(ws).name.lower()) if ws else ""
+    if aid == "multiac" or ws_base == "multiac" or name == "multiac":
+        raise SystemExit(0)
+raise SystemExit(1)
+PY
+}
+
+## [MODULE] interactive-confirm
+## type: flow
+## purpose: 卸载前交互确认，避免误删。
+## version_scope: all (latest baseline)
+confirm_uninstall() {
+  if [[ "${ASSUME_YES}" == "1" ]]; then
+    return 0
+  fi
+  local answer="" prompt="确认执行卸载吗？(y/N): "
+  echo "即将执行 MACF/openclaw 卸载（统一走公开仓内置卸载流程）。"
+  if [[ -t 0 ]]; then
+    read -r -p "${prompt}" answer
+  elif [[ -r /dev/tty ]]; then
+    read -r -p "${prompt}" answer </dev/tty
+  else
+    die "当前为非交互环境，无法确认卸载（可设置 MACF_UNINSTALL_ASSUME_YES=1）。"
+  fi
+  if [[ "${answer}" != "y" && "${answer}" != "Y" ]]; then
+    log "已取消卸载。"
+    exit 0
+  fi
+}
+
+## [MODULE] copy-path-if-exists
+## type: flow
+## purpose: 将存在的文件或目录复制到备份目录。
+## version_scope: all (latest baseline)
+copy_path_if_exists() {
+  local src="$1" snapshot_root="$2"
+  [[ -e "${src}" ]] || return 0
+  local rel
+  if [[ "${src}" == "${HOME}"/* ]]; then
+    rel="${src#${HOME}/}"
+  else
+    rel="$(basename "${src}")"
+  fi
+  local dst="${snapshot_root}/${rel}"
+  mkdir -p "$(dirname "${dst}")"
+  cp -a "${src}" "${dst}"
+}
+
+## [MODULE] fallback-backup
+## type: flow
+## purpose: 兜底卸载前备份关键私有资产。
+## version_scope: all (latest baseline)
+backup_private_assets_fallback() {
+  local ts snapshot_root archive_file sync_script
+  ts="$(date +%Y%m%d-%H%M%S)"
+  BACKUP_DIR="${BACKUP_ROOT}/macf-uninstall-fallback-${ts}"
+  snapshot_root="${BACKUP_DIR}/snapshot"
+  archive_file="${BACKUP_DIR}/private-assets.tar.gz"
+  mkdir -p "${snapshot_root}"
+
+  sync_script="${SYSTEM_ROOT}/tools/asset-ops/sync-all-runtime-assets.sh"
+  if [[ -f "${sync_script}" ]]; then
+    log "卸载前同步运行时资产到私有资产库。"
+    MACF_ASSETS_ROOT="${ASSETS_ROOT}" \
+    MACF_OPENCLAW_JSON="${OPENCLAW_JSON}" \
+    MACF_FRAMEWORK_WORKSPACE="${FRAMEWORK_WS}" \
+    MACF_SYSTEM_ROOT="${SYSTEM_ROOT}" \
+      bash "${sync_script}" >/dev/null 2>&1 || true
+  fi
+
+  copy_path_if_exists "${ASSETS_ROOT}" "${snapshot_root}"
+  copy_path_if_exists "${OPENCLAW_JSON}" "${snapshot_root}"
+  copy_path_if_exists "${OPENCLAW_HOME}/.env" "${snapshot_root}"
+  copy_path_if_exists "${OPENCLAW_HOME}/workspace" "${snapshot_root}"
+  copy_path_if_exists "${OPENCLAW_HOME}/system/user-config" "${snapshot_root}"
+  copy_path_if_exists "${OPENCLAW_HOME}/credentials" "${snapshot_root}"
+  copy_path_if_exists "${OPENCLAW_HOME}/macf-auto-upgrade.env" "${snapshot_root}"
+  copy_path_if_exists "${OPENCLAW_HOME}/bin/macf-auto-upgrade.sh" "${snapshot_root}"
+
+  tar -czf "${archive_file}" -C "${snapshot_root}" .
+  log "兜底卸载备份完成：${archive_file}"
+}
+
+## [MODULE] fallback-disable-services
+## type: flow
+## purpose: 兜底流程下停止并移除 systemd 单元。
+## version_scope: all (latest baseline)
+disable_and_remove_services_fallback() {
+  if ! sudo_ready; then
+    warn "当前无 sudo 能力，跳过 systemd 单元清理。"
+    return 0
+  fi
+  local units=(
+    "${AUTO_UPGRADE_TIMER_NAME}"
+    "${AUTO_UPGRADE_SERVICE_NAME}"
+    "${SYSTEM_SERVICE_NAME}"
+  )
+  local unit
+  for unit in "${units[@]}"; do
+    run_sudo_if_available systemctl stop "${unit}" >/dev/null 2>&1 || true
+    run_sudo_if_available systemctl disable "${unit}" >/dev/null 2>&1 || true
+  done
+  run_sudo_if_available rm -f "/etc/systemd/system/${AUTO_UPGRADE_TIMER_NAME}" || true
+  run_sudo_if_available rm -f "/etc/systemd/system/${AUTO_UPGRADE_SERVICE_NAME}" || true
+  run_sudo_if_available rm -f "/etc/systemd/system/${SYSTEM_SERVICE_NAME}" || true
+  run_sudo_if_available systemctl daemon-reload >/dev/null 2>&1 || true
+}
+
+## [MODULE] fallback-uninstall-openclaw
+## type: flow
+## purpose: 兜底流程下卸载 openclaw 进程与全局包。
+## version_scope: all (latest baseline)
+uninstall_openclaw_fallback() {
+  local openclaw_bin
+  openclaw_bin="$(command -v openclaw || true)"
+  if [[ -n "${openclaw_bin}" ]]; then
+    "${openclaw_bin}" gateway stop >/dev/null 2>&1 || true
+    "${openclaw_bin}" gateway uninstall >/dev/null 2>&1 || true
+    "${openclaw_bin}" uninstall --all --yes --non-interactive >/dev/null 2>&1 || true
+  fi
+
+  if command -v npm >/dev/null 2>&1; then
+    if run_sudo_if_available npm uninstall -g openclaw >/dev/null 2>&1; then
+      :
+    else
+      npm uninstall -g openclaw >/dev/null 2>&1 || true
+    fi
+  fi
+  run_sudo_if_available rm -f /usr/local/bin/openclaw /usr/bin/openclaw >/dev/null 2>&1 || true
+}
+
+## [MODULE] fallback-cleanup-runtime
+## type: flow
+## purpose: 清理 MACF 运行时与自动升级落地产物。
+## version_scope: all (latest baseline)
+cleanup_runtime_files_fallback() {
+  rm -rf "${SYSTEM_ROOT}" || true
+  rm -rf "${FRAMEWORK_WS}" || true
+  rm -f "${OPENCLAW_HOME}/bin/macf-auto-upgrade.sh" || true
+  rm -f "${OPENCLAW_HOME}/macf-auto-upgrade.env" || true
+  rm -f "${OPENCLAW_HOME}/credentials/macf-github-token.env" || true
+}
+
+## [MODULE] fallback-cleanup-openclaw-home
+## type: flow
+## purpose: 按配置删除 openclaw 主目录。
+## version_scope: all (latest baseline)
+cleanup_openclaw_home_if_configured() {
+  if [[ "${REMOVE_OPENCLAW_HOME}" == "1" ]]; then
+    rm -rf "${OPENCLAW_HOME}" || true
+    log "已删除 openclaw 主目录：${OPENCLAW_HOME}"
+  else
+    log "按配置保留 openclaw 主目录：${OPENCLAW_HOME}"
+  fi
+}
+
+## [MODULE] fallback-uninstall-run
+## type: flow
+## purpose: 统一执行公开仓内置卸载流程（不依赖本地卸载脚本）。
+## version_scope: all (latest baseline)
+run_fallback_uninstall() {
+  if ! is_macf_runtime_installed; then
+    log "未检测到可卸载的 MACF/openclaw 运行时，跳过。"
+    exit 0
+  fi
+  confirm_uninstall
+  backup_private_assets_fallback
+  disable_and_remove_services_fallback
+  uninstall_openclaw_fallback
+  cleanup_runtime_files_fallback
+  cleanup_openclaw_home_if_configured
+  log "兜底卸载完成。备份目录：${BACKUP_DIR}"
+}
+
 ## [MODULE] main
 ## type: flow
-## purpose: 从公开入口触发本地卸载（通过临时副本执行，避免自删冲突）。
+## purpose: 从公开入口统一执行内置卸载流程。
 ## version_scope: all (latest baseline)
 main() {
-  [[ -f "${LOCAL_UNINSTALL_SCRIPT}" ]] || die "未检测到本地卸载脚本：${LOCAL_UNINSTALL_SCRIPT}"
-  local tmp_script
-  tmp_script="$(mktemp /tmp/macf-uninstall-wrapper-XXXXXX.sh)"
-  cp "${LOCAL_UNINSTALL_SCRIPT}" "${tmp_script}"
-  chmod 700 "${tmp_script}"
-  bash "${tmp_script}" "$@"
-  rm -f "${tmp_script}" || true
+  if [[ -f "${LOCAL_UNINSTALL_SCRIPT}" ]]; then
+    warn "检测到本地卸载脚本：${LOCAL_UNINSTALL_SCRIPT}"
+    warn "当前策略已统一为公开仓内置卸载流程，不再依赖本地脚本。"
+  fi
+  run_fallback_uninstall
 }
 
 main "$@"
