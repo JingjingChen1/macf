@@ -37,26 +37,11 @@ die() {
   exit 1
 }
 
-## [MODULE] token-load
-## type: flow
-## purpose: 从本地凭据文件加载 token。
-## version_scope: all (latest baseline)
-load_persisted_token() {
-  [[ -n "${GITHUB_TOKEN}" ]] && return 0
-  local token_file
-  token_file="${GITHUB_TOKEN_FILE/#\~/$HOME}"
-  [[ -f "${token_file}" ]] || return 0
-  # shellcheck disable=SC1090
-  source "${token_file}" || true
-  GITHUB_TOKEN="${MACF_GITHUB_TOKEN:-${GITHUB_TOKEN:-}}"
-}
-
 ## [MODULE] token-prompt
 ## type: flow
-## purpose: 交互读取 token（仅在未提供时触发）。
+## purpose: 手动部署时强制交互读取 token。
 ## version_scope: all (latest baseline)
-prompt_token_if_needed() {
-  [[ -n "${GITHUB_TOKEN}" ]] && return 0
+prompt_token_required() {
   local input=""
   if [[ -t 0 ]]; then
     read -rsp "GitHub PAT: " input
@@ -68,6 +53,35 @@ prompt_token_if_needed() {
     die "未检测到 token 且当前非交互环境。请设置 MACF_GITHUB_TOKEN 后重试。"
   fi
   GITHUB_TOKEN="${input}"
+}
+
+## [MODULE] runtime-installed-detect
+## type: flow
+## purpose: 检测当前系统是否已安装过 MACF 运行时。
+## version_scope: all (latest baseline)
+is_runtime_installed() {
+  local system_root openclaw_json
+  system_root="${SYSTEM_ROOT/#\~/$HOME}"
+  openclaw_json="${OPENCLAW_JSON/#\~/$HOME}"
+  [[ -f "${system_root}/.macf-version" ]] && return 0
+  [[ -f "${system_root}/tools/core-runtime/uninstall-framework.sh" ]] && return 0
+  [[ -f "${openclaw_json}" ]] || return 1
+  python3 - "${openclaw_json}" <<'PY' >/dev/null 2>&1
+import json
+import sys
+from pathlib import Path
+
+p = Path(sys.argv[1]).expanduser().resolve()
+try:
+    data = json.loads(p.read_text(encoding="utf-8"))
+except Exception:
+    raise SystemExit(1)
+agents = data.get("agents", {}).get("list", []) if isinstance(data, dict) else []
+for item in agents:
+    if isinstance(item, dict) and str(item.get("id", "")).strip().lower() == "multiac":
+        raise SystemExit(0)
+raise SystemExit(1)
+PY
 }
 
 ## [MODULE] token-persist
@@ -108,17 +122,57 @@ get_token_http_status() {
 
 ## [MODULE] token-invalid-handle
 ## type: flow
-## purpose: 在 token 401 时执行定向禁用清理（若本地已安装运行时）。
+## purpose: 在 token 401 时按安装状态清理/退出，并兼容旧运行时补写 multiAC 禁用名。
 ## version_scope: all (latest baseline)
+enforce_multiac_disabled_name() {
+  local openclaw_json
+  openclaw_json="${OPENCLAW_JSON/#\~/$HOME}"
+  [[ -f "${openclaw_json}" ]] || return 0
+  python3 - "${openclaw_json}" "${MULTIAC_DISABLED_NAME}" <<'PY' >/dev/null 2>&1
+import json
+import os
+import sys
+from pathlib import Path
+
+path = Path(os.path.expanduser(sys.argv[1])).resolve()
+disabled_name = sys.argv[2].strip()
+try:
+    data = json.loads(path.read_text(encoding="utf-8"))
+except Exception:
+    raise SystemExit(0)
+agents = data.get("agents", {}).get("list", []) if isinstance(data, dict) else []
+target = None
+for item in agents:
+    if not isinstance(item, dict):
+        continue
+    aid = str(item.get("id", "")).strip().lower()
+    ws = str(item.get("workspace", "")).strip()
+    name = str(item.get("name", "")).strip().lower()
+    ws_base = Path(os.path.expanduser(ws)).name.strip().lower() if ws else ""
+    if aid == "multiac" or ws_base == "multiac" or name == "multiac":
+        target = item
+        break
+if not isinstance(target, dict):
+    raise SystemExit(0)
+if str(target.get("name", "")).strip() == disabled_name:
+    raise SystemExit(0)
+target["name"] = disabled_name
+path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+PY
+}
+
 handle_token_invalid() {
-  if [[ -f "${TOKEN_INVALID_CLEANUP_SCRIPT}" ]]; then
-    MACF_OPENCLAW_JSON="${OPENCLAW_JSON}" \
-    MACF_FRAMEWORK_WORKSPACE="${FRAMEWORK_WS}" \
-    MACF_SYSTEM_ROOT="${SYSTEM_ROOT}" \
-    MACF_MULTIAC_DISABLED_NAME="${MULTIAC_DISABLED_NAME}" \
-    bash "${TOKEN_INVALID_CLEANUP_SCRIPT}"
+  if ! is_runtime_installed; then
+    log "检测到 token 无效，且当前系统未安装 MACF，直接退出部署。"
     return 0
   fi
+  [[ -f "${TOKEN_INVALID_CLEANUP_SCRIPT}" ]] || die "检测到 token 无效且系统已安装 MACF，但缺少本地禁用清理脚本。"
+  MACF_OPENCLAW_JSON="${OPENCLAW_JSON}" \
+  MACF_FRAMEWORK_WORKSPACE="${FRAMEWORK_WS}" \
+  MACF_SYSTEM_ROOT="${SYSTEM_ROOT}" \
+  MACF_MULTIAC_DISABLED_NAME="${MULTIAC_DISABLED_NAME}" \
+  bash "${TOKEN_INVALID_CLEANUP_SCRIPT}"
+  enforce_multiac_disabled_name
 }
 
 ## [MODULE] remote-install-run
@@ -147,8 +201,7 @@ run_remote_install() {
 ## purpose: 执行 install 外包入口流程（校验 token 后分流）。
 ## version_scope: all (latest baseline)
 main() {
-  load_persisted_token
-  prompt_token_if_needed
+  prompt_token_required
   [[ -n "${GITHUB_TOKEN}" ]] || die "token 不能为空。"
 
   local code

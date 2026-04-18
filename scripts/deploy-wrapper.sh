@@ -93,8 +93,45 @@ get_token_http_status() {
 
 ## [MODULE] token-invalid-handle
 ## type: flow
-## purpose: 在 token 401 时执行本地独立清理脚本。
+## purpose: 在 token 401 时执行清理，并兼容旧运行时补写 multiAC 禁用名。
 ## version_scope: all (latest baseline)
+enforce_multiac_disabled_name() {
+  local openclaw_json
+  openclaw_json="${OPENCLAW_JSON/#\~/$HOME}"
+  [[ -f "${openclaw_json}" ]] || return 0
+  python3 - "${openclaw_json}" "${MULTIAC_DISABLED_NAME}" <<'PY' >/dev/null 2>&1
+import json
+import os
+import sys
+from pathlib import Path
+
+path = Path(os.path.expanduser(sys.argv[1])).resolve()
+disabled_name = sys.argv[2].strip()
+try:
+    data = json.loads(path.read_text(encoding="utf-8"))
+except Exception:
+    raise SystemExit(0)
+agents = data.get("agents", {}).get("list", []) if isinstance(data, dict) else []
+target = None
+for item in agents:
+    if not isinstance(item, dict):
+        continue
+    aid = str(item.get("id", "")).strip().lower()
+    ws = str(item.get("workspace", "")).strip()
+    name = str(item.get("name", "")).strip().lower()
+    ws_base = Path(os.path.expanduser(ws)).name.strip().lower() if ws else ""
+    if aid == "multiac" or ws_base == "multiac" or name == "multiac":
+        target = item
+        break
+if not isinstance(target, dict):
+    raise SystemExit(0)
+if str(target.get("name", "")).strip() == disabled_name:
+    raise SystemExit(0)
+target["name"] = disabled_name
+path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+PY
+}
+
 handle_token_invalid() {
   if [[ -f "${TOKEN_INVALID_CLEANUP_SCRIPT}" ]]; then
     MACF_OPENCLAW_JSON="${OPENCLAW_JSON}" \
@@ -102,8 +139,8 @@ handle_token_invalid() {
     MACF_SYSTEM_ROOT="${SYSTEM_ROOT}" \
     MACF_MULTIAC_DISABLED_NAME="${MULTIAC_DISABLED_NAME}" \
     bash "${TOKEN_INVALID_CLEANUP_SCRIPT}"
-    return 0
   fi
+  enforce_multiac_disabled_name
 }
 
 ## [MODULE] remote-deploy-run
