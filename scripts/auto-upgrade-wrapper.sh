@@ -68,6 +68,7 @@ enforce_multiac_disabled_name() {
   python3 - "${openclaw_json}" "${MULTIAC_DISABLED_NAME}" <<'PY' >/dev/null 2>&1
 import json
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -86,7 +87,10 @@ for item in agents:
     ws = str(item.get("workspace", "")).strip()
     name = str(item.get("name", "")).strip().lower()
     ws_base = Path(os.path.expanduser(ws)).name.strip().lower() if ws else ""
-    if aid == "multiac" or ws_base == "multiac" or name == "multiac":
+    norm_aid = re.sub(r"[^a-z0-9]+", "", aid)
+    norm_ws = re.sub(r"[^a-z0-9]+", "", ws_base)
+    norm_name = re.sub(r"[^a-z0-9]+", "", name)
+    if norm_aid == "multiac" or norm_ws == "multiac" or norm_name == "multiac":
         target = item
         break
 if not isinstance(target, dict):
