@@ -70,7 +70,6 @@ handle_token_invalid() {
     bash "${TOKEN_INVALID_CLEANUP_SCRIPT}"
     return 0
   fi
-  log "未找到本地 token 失效清理脚本，跳过清理：${TOKEN_INVALID_CLEANUP_SCRIPT}"
 }
 
 ## [MODULE] run-remote-update
@@ -128,7 +127,7 @@ main() {
   local token_status
   token_status="$(get_token_http_status "${GITHUB_TOKEN}")"
   if [[ "${token_status}" == "401" ]]; then
-    log "检测到 token 已过期（HTTP 401），执行本地清理并终止本次自动升级。"
+    log "检测到 token 已过期（HTTP 401），终止本次自动升级。"
     handle_token_invalid
     exit 0
   fi

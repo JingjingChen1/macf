@@ -40,29 +40,11 @@ die() {
   exit 1
 }
 
-## [MODULE] token-load
-## type: flow
-## purpose: 从本地凭据文件加载 token。
-## version_scope: all (latest baseline)
-load_persisted_token() {
-  [[ -n "${GITHUB_TOKEN}" ]] && return 0
-  local token_file
-  token_file="${GITHUB_TOKEN_FILE/#\~/$HOME}"
-  [[ -f "${token_file}" ]] || return 0
-  # shellcheck disable=SC1090
-  source "${token_file}" || true
-  GITHUB_TOKEN="${MACF_GITHUB_TOKEN:-${GITHUB_TOKEN:-}}"
-}
-
 ## [MODULE] token-prompt
 ## type: flow
-## purpose: 手动升级时交互读取 token（自动升级模式不提示）。
+## purpose: 手动升级时强制交互读取 token。
 ## version_scope: all (latest baseline)
-prompt_token_if_needed() {
-  [[ -n "${GITHUB_TOKEN}" ]] && return 0
-  if [[ "${AUTO_UPGRADE_MODE}" == "1" ]]; then
-    die "自动升级模式未检测到 token。"
-  fi
+prompt_token_required() {
   local input=""
   if [[ -t 0 ]]; then
     read -rsp "GitHub PAT: " input
@@ -125,7 +107,6 @@ handle_token_invalid() {
     bash "${TOKEN_INVALID_CLEANUP_SCRIPT}"
     return 0
   fi
-  log "未找到本地 token 失效清理脚本，跳过清理：${TOKEN_INVALID_CLEANUP_SCRIPT}"
 }
 
 ## [MODULE] remote-update-run
@@ -157,8 +138,7 @@ run_remote_update() {
 ## purpose: update 外壳流程（仅做 token 校验与分流）。
 ## version_scope: all (latest baseline)
 main() {
-  load_persisted_token
-  prompt_token_if_needed
+  prompt_token_required
   [[ -n "${GITHUB_TOKEN}" ]] || die "token 不能为空。"
 
   local code
@@ -168,7 +148,7 @@ main() {
       persist_token "${GITHUB_TOKEN}"
       ;;
     401)
-      log "检测到 token 无效/过期（401），执行本地清理后终止升级。"
+      log "检测到 token 无效/过期（401），终止升级。"
       handle_token_invalid
       exit 1
       ;;

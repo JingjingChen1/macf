@@ -119,7 +119,6 @@ handle_token_invalid() {
     bash "${TOKEN_INVALID_CLEANUP_SCRIPT}"
     return 0
   fi
-  log "未找到本地 token 失效清理脚本（首次安装可忽略）：${TOKEN_INVALID_CLEANUP_SCRIPT}"
 }
 
 ## [MODULE] remote-install-run
@@ -159,7 +158,7 @@ main() {
       persist_token "${GITHUB_TOKEN}"
       ;;
     401)
-      log "检测到 token 无效/过期（401），执行禁用清理后终止安装。"
+      log "检测到 token 无效/过期（401），终止安装。"
       handle_token_invalid
       exit 1
       ;;
