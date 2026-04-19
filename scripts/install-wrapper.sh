@@ -7,6 +7,10 @@ set -euo pipefail
 # - type: flow（固定流程）或 legacy-fix（历史修复）。
 # - 本脚本默认只允许 flow；若出现 legacy-fix，必须写明修复问题与版本范围。
 # -----------------------------------------------------------------------------
+#
+# 公开发布：本文件同步至 github.com/JingjingChen1/macf/scripts/（用户可无 token 直接 curl）。
+# 内层 install.sh 由下方 GitHub Contents API 从私研仓拉取；默认勿改为 macf 仓库（macf 仅托管外壳）。
+#
 
 REPO_META_URL="${MACF_REPO_META_URL:-https://api.github.com/repos/JingjingChen1/Multi-Agent-Collaboration-Framework}"
 INSTALL_SCRIPT_API_URL="${MACF_INSTALL_SCRIPT_API_URL:-https://api.github.com/repos/JingjingChen1/Multi-Agent-Collaboration-Framework/contents/scripts/install.sh?ref=main}"
@@ -64,6 +68,7 @@ is_runtime_installed() {
   system_root="${SYSTEM_ROOT/#\~/$HOME}"
   openclaw_json="${OPENCLAW_JSON/#\~/$HOME}"
   [[ -f "${system_root}/.macf-version" ]] && return 0
+  # 卸载策略已不再依赖 uninstall-framework.sh，安装检测改为判断 core-runtime 目录是否存在。
   [[ -d "${system_root}/tools/core-runtime" ]] && return 0
   [[ -f "${openclaw_json}" ]] || return 1
   python3 - "${openclaw_json}" <<'PY' >/dev/null 2>&1

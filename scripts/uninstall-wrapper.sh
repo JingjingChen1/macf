@@ -7,6 +7,10 @@ set -euo pipefail
 # - type: flow（固定流程）或 legacy-fix（历史修复）。
 # - 本脚本默认只允许 flow；若出现 legacy-fix，必须写明修复问题与版本范围。
 # -----------------------------------------------------------------------------
+#
+# 公开发布：本文件同步至 github.com/JingjingChen1/macf/scripts/（用户可无 token 直接 curl）。
+# 卸载逻辑自包含在本脚本；不再从私研仓拉取大段 install/deploy/update 脚本。
+#
 
 ASSETS_ROOT="${MACF_ASSETS_ROOT:-${HOME}/macf-assets}"
 OPENCLAW_HOME="${MACF_OPENCLAW_HOME:-${HOME}/.openclaw}"

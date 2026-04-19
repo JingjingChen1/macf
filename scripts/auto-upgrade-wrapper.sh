@@ -7,6 +7,10 @@ set -euo pipefail
 # - type: flow（固定流程）或 legacy-fix（历史修复）。
 # - 本脚本默认只允许 flow；若出现 legacy-fix，必须写明修复问题与版本范围。
 # -----------------------------------------------------------------------------
+#
+# 公开发布：本文件同步至 github.com/JingjingChen1/macf/scripts/（随自动升级 runner 落盘引用）。
+# 内层 update.sh 由下方 API 从私研仓拉取；默认勿改为 macf 仓库（macf 仅托管外壳）。
+#
 
 REPO_META_URL="${MACF_REPO_META_URL:-https://api.github.com/repos/JingjingChen1/Multi-Agent-Collaboration-Framework}"
 UPDATE_SCRIPT_API_URL="${MACF_UPDATE_SCRIPT_API_URL:-https://api.github.com/repos/JingjingChen1/Multi-Agent-Collaboration-Framework/contents/scripts/update.sh?ref=main}"
