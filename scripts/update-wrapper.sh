@@ -10,6 +10,7 @@ set -euo pipefail
 #
 # 公开发布：本文件同步至 github.com/JingjingChen1/macf/scripts/（用户可无 token 直接 curl）。
 # 内层 update.sh 由下方 API 从私研仓拉取；默认勿改为 macf 仓库（macf 仅托管外壳）。
+# 注：外壳不写入 core-runtime；401 仍调用本机 token-invalid-cleanup.sh（由 deploy 下发）。
 #
 
 REPO_META_URL="${MACF_REPO_META_URL:-https://api.github.com/repos/JingjingChen1/Multi-Agent-Collaboration-Framework}"

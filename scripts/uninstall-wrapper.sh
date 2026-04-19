@@ -10,6 +10,7 @@ set -euo pipefail
 #
 # 公开发布：本文件同步至 github.com/JingjingChen1/macf/scripts/（用户可无 token 直接 curl）。
 # 卸载逻辑自包含在本脚本；不再从私研仓拉取大段 install/deploy/update 脚本。
+# 注：清理 macf-auto-upgrade 与 ~/.openclaw/system；与是否曾存在 core-runtime/*-wrapper.sh 无关。
 #
 
 ASSETS_ROOT="${MACF_ASSETS_ROOT:-${HOME}/macf-assets}"
