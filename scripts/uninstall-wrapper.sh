@@ -175,7 +175,7 @@ backup_private_assets_fallback() {
   sync_script="${SYSTEM_ROOT}/tools/asset-ops/sync-all-runtime-assets.sh"
   if [[ -f "${sync_script}" ]]; then
     log "卸载前同步运行时资产到私有资产库。"
-    # LockstepSquad 一致性文档按“第一位成员单份快照”策略写入资产库；
+    # LockstepSquad 一致性文档按“编队 shared 目录单份快照”策略写入资产库；
     # 公开卸载入口在备份前复用同一同步器，确保快照口径与当前发布一致。
     MACF_ASSETS_ROOT="${ASSETS_ROOT}" \
     MACF_OPENCLAW_JSON="${OPENCLAW_JSON}" \
