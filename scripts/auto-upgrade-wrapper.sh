@@ -12,6 +12,7 @@ set -euo pipefail
 # 内层 update.sh 由下方 API 从私研仓拉取；默认勿改为 macf 仓库（macf 仅托管外壳）。
 # 注：runner 在下载本文件失败（离线等）时直接退出，不会执行到此处；401 仍可能调用本机 token-invalid-cleanup.sh。
 # 每次执行结束（成功 / 失败 / 跳过）会向 MACF_AUTO_UPGRADE_JOURNAL_FILE 追加一行 TSV：时间、状态、原因。
+# 注：远端 update 阶段 D 会执行 deploy-framework（render、~/.local/bin PATH 片段、registry 等与手动升级一致）；本外壳传入 MACF_OPENCLAW_BIN 优先 ~/.local/bin，避免定时任务环境 PATH 过窄。
 #
 
 REPO_META_URL="${MACF_REPO_META_URL:-https://api.github.com/repos/JingjingChen1/Multi-Agent-Collaboration-Framework}"
@@ -150,14 +151,32 @@ handle_token_invalid() {
   enforce_multiac_disabled_name
 }
 
+## [MODULE] openclaw-bin-for-remote
+## type: flow
+## purpose: 为远端 update 提供 MACF_OPENCLAW_BIN（优先 ~/.local/bin，定时任务环境常无完整 PATH）。
+## version_scope: all (latest baseline)
+remote_openclaw_bin_for_pipe() {
+  if [[ -n "${MACF_OPENCLAW_BIN:-}" ]]; then
+    printf '%s\n' "${MACF_OPENCLAW_BIN}"
+    return 0
+  fi
+  local lp="${HOME}/.local/bin/openclaw"
+  if [[ -x "${lp}" ]]; then
+    printf '%s\n' "${lp}"
+    return 0
+  fi
+  command -v openclaw || true
+}
+
 ## [MODULE] run-remote-update
 ## type: flow
 ## purpose: token 有效后仅执行远端 update.sh（自动升级模式）；区分 curl 与内层 bash 退出码并收集 stderr 摘要。
 ## version_scope: all (latest baseline)
 run_remote_update() {
   local token="$1"
-  local ecurl ebash rc_curl rc_bash
+  local ecurl ebash rc_curl rc_bash oc_bin
   REMOTE_UPDATE_FAILURE_DETAIL=""
+  oc_bin="$(remote_openclaw_bin_for_pipe)"
   ecurl="$(mktemp)"
   ebash="$(mktemp)"
   trap 'rm -f "${ecurl}" "${ebash}"' RETURN
@@ -172,6 +191,7 @@ run_remote_update() {
     MACF_OPENCLAW_JSON="${OPENCLAW_JSON}" \
     MACF_FRAMEWORK_WORKSPACE="${FRAMEWORK_WS}" \
     MACF_SYSTEM_ROOT="${SYSTEM_ROOT}" \
+    MACF_OPENCLAW_BIN="${oc_bin}" \
     MACF_MULTIAC_DISABLED_NAME="${MULTIAC_DISABLED_NAME}" \
     MACF_AUTO_UPGRADE_MODE=1 \
     MACF_SKIP_OPENCLAW_SYSTEM_UPGRADE="${SKIP_OPENCLAW_SYSTEM_UPGRADE}" \

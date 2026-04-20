@@ -10,7 +10,8 @@ set -euo pipefail
 #
 # 公开发布：本文件同步至 github.com/JingjingChen1/macf/scripts/（用户可无 token 直接 curl）。
 # 内层 install.sh 由下方 GitHub Contents API 从私研仓拉取；默认勿改为 macf 仓库（macf 仅托管外壳）。
-# 注：安装完成后 deploy/render 下发 tools（无 core-runtime 内外壳副本）；自动升级由 install 调 setup-auto-upgrade 写入 curl runner。
+# 注：安装完成后 deploy/render 下发 tools（无 core-runtime 内外壳副本）；自动升级由 install 调 setup-auto-upgrade（默认 systemd --user，无需 sudo）。
+# 注：openclaw 为用户级 npm 前缀安装；MACF_OPENCLAW_BIN 传给内层仅在有需要时辅助 deploy 解析（优先 ~/.local/bin）。
 #
 
 REPO_META_URL="${MACF_REPO_META_URL:-https://api.github.com/repos/JingjingChen1/Multi-Agent-Collaboration-Framework}"
@@ -194,6 +195,23 @@ handle_token_invalid() {
   enforce_multiac_disabled_name
 }
 
+## [MODULE] openclaw-bin-for-remote
+## type: flow
+## purpose: 安装前半段可能尚无 openclaw；若已存在则优先传 ~/.local/bin 供内层 deploy 使用。
+## version_scope: all (latest baseline)
+remote_openclaw_bin_for_pipe() {
+  if [[ -n "${MACF_OPENCLAW_BIN:-}" ]]; then
+    printf '%s\n' "${MACF_OPENCLAW_BIN}"
+    return 0
+  fi
+  local lp="${HOME}/.local/bin/openclaw"
+  if [[ -x "${lp}" ]]; then
+    printf '%s\n' "${lp}"
+    return 0
+  fi
+  command -v openclaw || true
+}
+
 ## [MODULE] remote-install-run
 ## type: flow
 ## purpose: 拉取并执行远端 install.sh。
@@ -201,6 +219,8 @@ handle_token_invalid() {
 run_remote_install() {
   local token="$1"
   shift
+  local oc_bin
+  oc_bin="$(remote_openclaw_bin_for_pipe)"
   curl -fsSL --oauth2-bearer "${token}" \
     -H "Accept: application/vnd.github.raw" \
     -H "X-GitHub-Api-Version: 2022-11-28" \
@@ -211,6 +231,7 @@ run_remote_install() {
     MACF_OPENCLAW_JSON="${OPENCLAW_JSON}" \
     MACF_FRAMEWORK_WORKSPACE="${FRAMEWORK_WS}" \
     MACF_SYSTEM_ROOT="${SYSTEM_ROOT}" \
+    MACF_OPENCLAW_BIN="${oc_bin}" \
     MACF_MULTIAC_DISABLED_NAME="${MULTIAC_DISABLED_NAME}" \
     bash -s -- "$@"
 }

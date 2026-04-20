@@ -12,6 +12,8 @@ set -euo pipefail
 # 内层 update.sh 由下方 API 从私研仓拉取；默认勿改为 macf 仓库（macf 仅托管外壳）。
 # 注：外壳不写入 core-runtime；401 仍调用本机 token-invalid-cleanup.sh（由 deploy 下发）。
 # 注：远端 update.sh 不将运行时同步进 ~/macf-assets、不在资产库 git checkpoint；快照请手动 sync-all-runtime-assets。
+# 注：内层 update 阶段 D 会调用 deploy-framework（PATH 片段、render、registry 等与手动 deploy 同源）；自动升级模式仅校验 timer，不重跑 setup-auto-upgrade。
+# 注：MACF_OPENCLAW_BIN 默认优先 ~/.local/bin/openclaw，供远端解析 CLI 与 cron/health 一致。
 #
 
 REPO_META_URL="${MACF_REPO_META_URL:-https://api.github.com/repos/JingjingChen1/Multi-Agent-Collaboration-Framework}"
@@ -165,6 +167,23 @@ handle_token_invalid() {
   enforce_multiac_disabled_name
 }
 
+## [MODULE] openclaw-bin-for-remote
+## type: flow
+## purpose: 为远端 update 提供 MACF_OPENCLAW_BIN（优先 ~/.local/bin）。
+## version_scope: all (latest baseline)
+remote_openclaw_bin_for_pipe() {
+  if [[ -n "${MACF_OPENCLAW_BIN:-}" ]]; then
+    printf '%s\n' "${MACF_OPENCLAW_BIN}"
+    return 0
+  fi
+  local lp="${HOME}/.local/bin/openclaw"
+  if [[ -x "${lp}" ]]; then
+    printf '%s\n' "${lp}"
+    return 0
+  fi
+  command -v openclaw || true
+}
+
 ## [MODULE] remote-update-run
 ## type: flow
 ## purpose: token 有效后仅执行远端 update.sh。
@@ -172,6 +191,8 @@ handle_token_invalid() {
 run_remote_update() {
   local token="$1"
   shift
+  local oc_bin
+  oc_bin="$(remote_openclaw_bin_for_pipe)"
   curl -fsSL --oauth2-bearer "${token}" \
     -H "Accept: application/vnd.github.raw" \
     -H "X-GitHub-Api-Version: 2022-11-28" \
@@ -182,6 +203,7 @@ run_remote_update() {
     MACF_OPENCLAW_JSON="${OPENCLAW_JSON}" \
     MACF_FRAMEWORK_WORKSPACE="${FRAMEWORK_WS}" \
     MACF_SYSTEM_ROOT="${SYSTEM_ROOT}" \
+    MACF_OPENCLAW_BIN="${oc_bin}" \
     MACF_MULTIAC_DISABLED_NAME="${MULTIAC_DISABLED_NAME}" \
     MACF_AUTO_UPGRADE_MODE="${AUTO_UPGRADE_MODE}" \
     MACF_SKIP_OPENCLAW_SYSTEM_UPGRADE="${SKIP_OPENCLAW_SYSTEM_UPGRADE}" \

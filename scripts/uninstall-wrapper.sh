@@ -198,25 +198,45 @@ backup_private_assets_fallback() {
 ## purpose: 兜底流程下停止并移除 systemd 单元。
 ## version_scope: all (latest baseline)
 disable_and_remove_services_fallback() {
-  if ! sudo_ready; then
-    die "缺少可用 sudo/root，无法确保自动升级 systemd 单元被删除。"
-  fi
   local units=(
     "${AUTO_UPGRADE_TIMER_NAME}"
     "${AUTO_UPGRADE_SERVICE_NAME}"
     "${SYSTEM_SERVICE_NAME}"
   )
-  local unit
+  local unit udir need_system_cleanup=0
+  udir="${XDG_CONFIG_HOME:-${HOME}/.config}/systemd/user"
   for unit in "${units[@]}"; do
-    run_sudo_if_available systemctl stop "${unit}" >/dev/null 2>&1 || true
-    run_sudo_if_available systemctl disable "${unit}" >/dev/null 2>&1 || true
+    systemctl --user stop "${unit}" >/dev/null 2>&1 || true
+    systemctl --user disable "${unit}" >/dev/null 2>&1 || true
   done
-  run_sudo_if_available rm -f "/etc/systemd/system/${AUTO_UPGRADE_TIMER_NAME}" || true
-  run_sudo_if_available rm -f "/etc/systemd/system/${AUTO_UPGRADE_SERVICE_NAME}" || true
-  run_sudo_if_available rm -f "/etc/systemd/system/${SYSTEM_SERVICE_NAME}" || true
-  run_sudo_if_available systemctl daemon-reload >/dev/null 2>&1 || true
-  run_sudo_if_available systemctl reset-failed "${AUTO_UPGRADE_TIMER_NAME}" >/dev/null 2>&1 || true
-  run_sudo_if_available systemctl reset-failed "${AUTO_UPGRADE_SERVICE_NAME}" >/dev/null 2>&1 || true
+  for unit in "${units[@]}"; do
+    rm -f "${udir}/${unit}"
+  done
+  systemctl --user daemon-reload >/dev/null 2>&1 || true
+
+  if [[ -e "/etc/systemd/system/${AUTO_UPGRADE_TIMER_NAME}" || -e "/etc/systemd/system/${AUTO_UPGRADE_SERVICE_NAME}" || -e "/etc/systemd/system/${SYSTEM_SERVICE_NAME}" ]]; then
+    need_system_cleanup=1
+  fi
+  if systemctl is-enabled "${AUTO_UPGRADE_TIMER_NAME}" >/dev/null 2>&1 || systemctl is-enabled "${AUTO_UPGRADE_SERVICE_NAME}" >/dev/null 2>&1 || systemctl is-enabled "${SYSTEM_SERVICE_NAME}" >/dev/null 2>&1; then
+    need_system_cleanup=1
+  fi
+
+  if [[ "${need_system_cleanup}" == "1" ]]; then
+    if ! sudo_ready; then
+      die "检测到旧版系统级 systemd 单元仍存在，但当前无 sudo。请使用 sudo 重试卸载，或手动删除 /etc/systemd/system 下 MACF 相关单元。"
+    fi
+    for unit in "${units[@]}"; do
+      run_sudo_if_available systemctl stop "${unit}" >/dev/null 2>&1 || true
+      run_sudo_if_available systemctl disable "${unit}" >/dev/null 2>&1 || true
+    done
+    run_sudo_if_available rm -f "/etc/systemd/system/${AUTO_UPGRADE_TIMER_NAME}" || true
+    run_sudo_if_available rm -f "/etc/systemd/system/${AUTO_UPGRADE_SERVICE_NAME}" || true
+    run_sudo_if_available rm -f "/etc/systemd/system/${SYSTEM_SERVICE_NAME}" || true
+    run_sudo_if_available systemctl daemon-reload >/dev/null 2>&1 || true
+    run_sudo_if_available systemctl reset-failed "${AUTO_UPGRADE_TIMER_NAME}" >/dev/null 2>&1 || true
+    run_sudo_if_available systemctl reset-failed "${AUTO_UPGRADE_SERVICE_NAME}" >/dev/null 2>&1 || true
+  fi
+
   if systemctl is-enabled "${AUTO_UPGRADE_TIMER_NAME}" >/dev/null 2>&1; then
     die "自动升级 timer 删除失败：${AUTO_UPGRADE_TIMER_NAME}"
   fi
@@ -236,8 +256,12 @@ disable_and_remove_services_fallback() {
 ## purpose: 兜底流程下卸载 openclaw 进程与全局包。
 ## version_scope: all (latest baseline)
 uninstall_openclaw_fallback() {
-  local openclaw_bin
+  local openclaw_bin prefix
+  prefix="${MACF_OPENCLAW_NPM_PREFIX:-${HOME}/.local}"
   openclaw_bin="$(command -v openclaw || true)"
+  if [[ -z "${openclaw_bin}" && -x "${prefix}/bin/openclaw" ]]; then
+    openclaw_bin="${prefix}/bin/openclaw"
+  fi
   if [[ -n "${openclaw_bin}" ]]; then
     "${openclaw_bin}" gateway stop >/dev/null 2>&1 || true
     "${openclaw_bin}" gateway uninstall >/dev/null 2>&1 || true
@@ -245,12 +269,10 @@ uninstall_openclaw_fallback() {
   fi
 
   if command -v npm >/dev/null 2>&1; then
-    if run_sudo_if_available npm uninstall -g openclaw >/dev/null 2>&1; then
-      :
-    else
-      npm uninstall -g openclaw >/dev/null 2>&1 || true
-    fi
+    npm uninstall -g openclaw --prefix "${prefix}" >/dev/null 2>&1 || true
+    run_sudo_if_available npm uninstall -g openclaw >/dev/null 2>&1 || true
   fi
+  rm -f "${prefix}/bin/openclaw" >/dev/null 2>&1 || true
   run_sudo_if_available rm -f /usr/local/bin/openclaw /usr/bin/openclaw >/dev/null 2>&1 || true
 }
 
