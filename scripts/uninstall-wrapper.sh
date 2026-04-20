@@ -177,6 +177,7 @@ backup_private_assets_fallback() {
     log "卸载前同步运行时资产到私有资产库。"
     # LockstepSquad 一致性文档按“编队 shared 目录单份快照”策略写入资产库；
     # 其中 skills 统一收敛到 shared/skills，IDENTITY.md 保持成员独立，不进入 shared。
+    # 同步器会清理成员资产中共享目录的空壳（如 runtime/workspace/agent-local）。
     # 公开卸载入口在备份前复用同一同步器，确保快照口径与当前发布一致。
     MACF_ASSETS_ROOT="${ASSETS_ROOT}" \
     MACF_OPENCLAW_JSON="${OPENCLAW_JSON}" \
