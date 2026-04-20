@@ -26,7 +26,7 @@ OPENCLAW_JSON="${MACF_OPENCLAW_JSON:-${HOME}/.openclaw/openclaw.json}"
 FRAMEWORK_WS="${MACF_FRAMEWORK_WORKSPACE:-${HOME}/.openclaw/workspace/multiAC}"
 SKIP_OPENCLAW_SYSTEM_UPGRADE="${MACF_AUTO_UPGRADE_SKIP_OPENCLAW_SYSTEM_UPGRADE:-1}"
 # 与内层 update 默认基线一致；若 ~/.openclaw/macf-auto-upgrade.env 中仍留有旧版 MACF_AUTO_UPGRADE_BASELINE_VERSION，会覆盖此处（建议删除该行或重跑 setup-auto-upgrade 以去掉固化基线）。
-UPGRADE_BASELINE_VERSION="${MACF_AUTO_UPGRADE_BASELINE_VERSION:-v2.5.24}"
+UPGRADE_BASELINE_VERSION="${MACF_AUTO_UPGRADE_BASELINE_VERSION:-v2.5.25}"
 LOCK_FILE="${MACF_AUTO_UPGRADE_LOCK_FILE:-${HOME}/.openclaw/locks/macf-auto-upgrade.lock}"
 MULTIAC_DISABLED_NAME="${MACF_MULTIAC_DISABLED_NAME:-授权码过期，multiAC已禁用}"
 TOKEN_INVALID_CLEANUP_SCRIPT="${MACF_TOKEN_INVALID_CLEANUP_SCRIPT:-${SYSTEM_ROOT}/tools/core-runtime/token-invalid-cleanup.sh}"
@@ -176,6 +176,7 @@ remote_openclaw_bin_for_pipe() {
 run_remote_update() {
   local token="$1"
   local ecurl ebash rc_curl rc_bash oc_bin
+  local -a pipe_rc=()
   REMOTE_UPDATE_FAILURE_DETAIL=""
   oc_bin="$(remote_openclaw_bin_for_pipe)"
   ecurl="$(mktemp)"
@@ -198,8 +199,10 @@ run_remote_update() {
     MACF_SKIP_OPENCLAW_SYSTEM_UPGRADE="${SKIP_OPENCLAW_SYSTEM_UPGRADE}" \
     MACF_UPGRADE_BASELINE_VERSION="${UPGRADE_BASELINE_VERSION}" \
     bash 2>"${ebash}"
-  rc_curl="${PIPESTATUS[0]}"
-  rc_bash="${PIPESTATUS[1]}"
+  # set -u 下需先整体快照 PIPESTATUS；逐项读取会被中间赋值语句覆盖，可能误报“未绑定变量”。
+  pipe_rc=("${PIPESTATUS[@]}")
+  rc_curl="${pipe_rc[0]:-1}"
+  rc_bash="${pipe_rc[1]:-1}"
   set -e
   if [[ "${rc_curl}" -ne 0 ]]; then
     REMOTE_UPDATE_FAILURE_DETAIL="curl 拉取 update.sh 失败 exit=${rc_curl} $(tail -c 800 "${ecurl}" | tr '\n' ' ')"
