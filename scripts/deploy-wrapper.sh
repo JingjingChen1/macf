@@ -14,6 +14,8 @@ set -euo pipefail
 # 注：远端 deploy 仅在资产目录缺失时初始化 macf-assets，已存在则零写入；不做运行时→资产包全量同步。
 # 注：内层 deploy-framework 结束会幂等写入 ~/.profile 等中的 ~/.local/bin PATH；会按 MACF_OPENCLAW_BIN（默认优先 ~/.local/bin/openclaw）
 #     与 systemd --user 单元做 gateway 最佳努力重启，与「用户级 openclaw + 用户级 Gateway」安装口径一致。
+# 注：本次 deploy 会同步 agent-lifecycle/normalize-agent-runtime-config.sh 与 route_policy_hints.py，
+#     保障 route-policy 手写误差可在恢复前自动规范化并通过校验。
 #
 
 REPO_META_URL="${MACF_REPO_META_URL:-https://api.github.com/repos/JingjingChen1/Multi-Agent-Collaboration-Framework}"
