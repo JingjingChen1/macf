@@ -106,7 +106,7 @@ get_token_http_status() {
 
 ## [MODULE] token-invalid-handle
 ## type: flow
-## purpose: 在 token 401 时执行清理，并兼容旧运行时补写 multiAC 禁用态（name + identity.name）。
+## purpose: 在 token 401 时执行清理，并统一写入 multiAC 禁用态（name + identity.name）。
 ## version_scope: all (latest baseline)
 enforce_multiac_disabled_name() {
   local openclaw_json
