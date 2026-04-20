@@ -12,6 +12,7 @@ set -euo pipefail
 # 卸载逻辑自包含在本脚本；不再从私研仓拉取大段 install/deploy/update 脚本。
 # 注：清理 macf-auto-upgrade 与 ~/.openclaw/system；与是否曾存在 core-runtime/*-wrapper.sh 无关。
 # 注：agent-lifecycle 新增的 normalize-agent-runtime-config.sh / route_policy_hints.py 同属 ~/.openclaw/system/tools，卸载时会一并清理。
+# 注：runtime-platform 不再保存 openclaw.json/.env 快照；卸载备份仍直接从 ~/.openclaw 抽取关键文件，互不影响。
 #
 
 ASSETS_ROOT="${MACF_ASSETS_ROOT:-${HOME}/macf-assets}"
