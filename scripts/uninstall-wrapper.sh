@@ -185,8 +185,8 @@ backup_private_assets_fallback() {
   copy_path_if_exists "${ASSETS_ROOT}" "${snapshot_root}"
   copy_path_if_exists "${OPENCLAW_JSON}" "${snapshot_root}"
   copy_path_if_exists "${OPENCLAW_HOME}/.env" "${snapshot_root}"
+  # 统一备份整个 workspace，覆盖 singleAgent 与 LockstepSquad 两类运行时目录。
   copy_path_if_exists "${OPENCLAW_HOME}/workspace" "${snapshot_root}"
-  copy_path_if_exists "${OPENCLAW_HOME}/system/user-config" "${snapshot_root}"
   copy_path_if_exists "${OPENCLAW_HOME}/credentials" "${snapshot_root}"
   copy_path_if_exists "${OPENCLAW_HOME}/macf-auto-upgrade.env" "${snapshot_root}"
   copy_path_if_exists "${OPENCLAW_HOME}/bin/macf-auto-upgrade.sh" "${snapshot_root}"
