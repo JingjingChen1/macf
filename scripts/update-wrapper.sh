@@ -12,6 +12,7 @@ set -euo pipefail
 # 内层 update.sh 由下方 API 从私研仓拉取；默认勿改为 macf 仓库（macf 仅托管外壳）。
 # 注：外壳不写入 core-runtime；401 仍调用本机 token-invalid-cleanup.sh（由 deploy 下发）。
 # 注：远端 update.sh 不将运行时同步进 ~/macf-assets、不在资产库 git checkpoint；快照请手动 sync-all-runtime-assets。
+#     若资产库缺失，内层 deploy 初始化会补齐 singleAgent/LockstepSquad 默认目录与 README 占位。
 # 注：内层 update 阶段 D 会调用 deploy-framework（PATH 片段、render、registry 等与手动 deploy 同源）；自动升级模式仅校验 timer，不重跑 setup-auto-upgrade。
 # 注：update 同步覆盖 normalize-agent-runtime-config.sh + route_policy_hints.py，并由 update 内置 cmp 校验运行时刷新结果。
 # 注：update 默认升级基线已提升到 v2.5.25，且沿用 deploy 的 heartbeat sources 根目录口径。
