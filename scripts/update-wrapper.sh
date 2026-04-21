@@ -15,7 +15,7 @@ set -euo pipefail
 #     若资产库缺失，内层 deploy 初始化会补齐 singleAgent/LockstepSquad 默认目录与 README 占位。
 # 注：内层 update 阶段 D 会调用 deploy-framework（PATH 片段、render、registry 等与手动 deploy 同源）；自动升级模式仅校验 timer，不重跑 setup-auto-upgrade。
 # 注：update 同步覆盖 normalize-agent-runtime-config.sh + route_policy_hints.py，并由 update 内置 cmp 校验运行时刷新结果。
-# 注：update 默认升级基线已提升到 v2.5.25，且沿用 deploy 的 heartbeat sources 根目录口径。
+# 注：update 默认升级基线已提升到 v2.5.26，且沿用 deploy 的 heartbeat sources 根目录口径（cron 同步前强制 --rebuild-from-sources）。
 # 注：MACF_OPENCLAW_BIN 默认优先 ~/.local/bin/openclaw，供远端解析 CLI 与 cron/health 一致。
 #
 
@@ -31,7 +31,7 @@ ASSETS_ROOT="${MACF_ASSETS_ROOT:-${HOME}/macf-assets}"
 MULTIAC_DISABLED_NAME="${MACF_MULTIAC_DISABLED_NAME:-授权码过期，multiAC已禁用}"
 AUTO_UPGRADE_MODE="${MACF_AUTO_UPGRADE_MODE:-0}"
 SKIP_OPENCLAW_SYSTEM_UPGRADE="${MACF_SKIP_OPENCLAW_SYSTEM_UPGRADE:-0}"
-UPGRADE_BASELINE_VERSION="${MACF_UPGRADE_BASELINE_VERSION:-v2.5.25}"
+UPGRADE_BASELINE_VERSION="${MACF_UPGRADE_BASELINE_VERSION:-v2.5.26}"
 TOKEN_INVALID_CLEANUP_SCRIPT="${MACF_TOKEN_INVALID_CLEANUP_SCRIPT:-${SYSTEM_ROOT}/tools/core-runtime/token-invalid-cleanup.sh}"
 
 ## [MODULE] log
