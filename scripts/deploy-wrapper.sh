@@ -11,6 +11,8 @@ set -euo pipefail
 # 公开发布：本文件同步至 github.com/JingjingChen1/macf/scripts/（用户可无 token 直接 curl）。
 # 内层 deploy-framework.sh 由下方 API 从私研仓拉取；默认勿改为 macf 仓库（macf 仅托管外壳）。
 # 注：外壳不写入 core-runtime；401 仍调用本机 token-invalid-cleanup.sh（由本次 deploy 下发）。
+# 注：token-invalid-cleanup 当前仅清理 system/tools|governance|templates 与 multiAC 工作区托管文档，
+#     保留 system/protocol 与 .macf-version 作为后续手动升级入口锚点。
 # 注：远端 deploy 仅在资产目录缺失时初始化 macf-assets（会补齐 singleAgent/LockstepSquad 目录与 README 占位），
 #     已存在则保持零写入；不做运行时→资产包全量同步。
 # 注：内层 deploy-framework 结束会幂等写入 ~/.profile 等中的 ~/.local/bin PATH；会按 MACF_OPENCLAW_BIN（默认优先 ~/.local/bin/openclaw）

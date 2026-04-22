@@ -11,6 +11,8 @@ set -euo pipefail
 # 公开发布：本文件同步至 github.com/JingjingChen1/macf/scripts/（由 macf-auto-upgrade runner curl 下载后再 bash，无 core-runtime 副本）。
 # 内层 update.sh 由下方 API 从私研仓拉取；默认勿改为 macf 仓库（macf 仅托管外壳）。
 # 注：runner 在下载本文件失败（离线等）时直接退出，不会执行到此处；401 仍可能调用本机 token-invalid-cleanup.sh。
+# 注：token-invalid-cleanup 仅清理可重建目录（system/tools|governance|templates）与 multiAC 托管文档；
+#     system/protocol 与 .macf-version 保留用于后续 update 入口判定与重建。
 # 每次执行结束（成功 / 失败 / 跳过）会向 MACF_AUTO_UPGRADE_JOURNAL_FILE 追加一行 TSV：时间、状态、原因。
 # 注：远端 update 阶段 D 会执行 deploy-framework（render、~/.local/bin PATH 片段、registry 等与手动升级一致）；本外壳传入 MACF_OPENCLAW_BIN 优先 ~/.local/bin，避免定时任务环境 PATH 过窄。
 #

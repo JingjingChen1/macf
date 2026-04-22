@@ -11,11 +11,14 @@ set -euo pipefail
 # 公开发布：本文件同步至 github.com/JingjingChen1/macf/scripts/（用户可无 token 直接 curl）。
 # 内层 update.sh 由下方 API 从私研仓拉取；默认勿改为 macf 仓库（macf 仅托管外壳）。
 # 注：外壳不写入 core-runtime；401 仍调用本机 token-invalid-cleanup.sh（由 deploy 下发）。
+# 注：token-invalid-cleanup 仅清理可重建目录（system/tools|governance|templates）与 multiAC 托管文档；
+#     system/protocol 与 .macf-version 会保留，供 update 识别禁用态最小升级入口。
 # 注：远端 update.sh 不将运行时同步进 ~/macf-assets、不在资产库 git checkpoint；快照请手动 sync-all-runtime-assets。
 #     若资产库缺失，内层 deploy 初始化会补齐 singleAgent/LockstepSquad 默认目录与 README 占位。
 # 注：内层 update 阶段 D 会调用 deploy-framework（PATH 片段、render、registry 等与手动 deploy 同源）；自动升级模式仅校验 timer，不重跑 setup-auto-upgrade。
 # 注：update 同步覆盖 normalize-agent-runtime-config.sh + route_policy_hints.py，并由 update 内置 cmp 校验运行时刷新结果。
 # 注：update 默认升级基线为 v2.5.25，且沿用 deploy 的 heartbeat sources 根目录口径（cron 同步前强制 --rebuild-from-sources）。
+# 注：若运行时处于 token 失效清理后的禁用态，内层 update 会先走 deploy 重建缺失目录，再执行完整性校验。
 # 注：MACF_OPENCLAW_BIN 默认优先 ~/.local/bin/openclaw，供远端解析 CLI 与 cron/health 一致。
 #
 

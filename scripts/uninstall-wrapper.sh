@@ -292,6 +292,7 @@ uninstall_openclaw_fallback() {
 ## purpose: 清理 MACF 运行时与自动升级落地产物。
 ## version_scope: all (latest baseline)
 cleanup_runtime_files_fallback() {
+  # 与 token 失效清理不同：公开卸载入口按“用户确认后完整移除”语义执行，不保留 system 子目录。
   rm -rf "${SYSTEM_ROOT}" || true
   rm -rf "${FRAMEWORK_WS}" || true
   rm -f "${OPENCLAW_HOME}/bin/macf-auto-upgrade.sh" || true
