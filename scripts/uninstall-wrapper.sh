@@ -180,6 +180,7 @@ backup_private_assets_fallback() {
     # 同步器会清理成员资产中共享目录的空壳（如 runtime/workspace/agent-local）。
     # heartbeat 口径为 B1：sources 单源 + effective/registry 汇总快照；
     # sync 时优先复制运行时快照，缺失时再按 sources 生成并落盘到 heartbeats/。
+    # 其中 multiAC 的“18:00 cron->sources 回写”任务产物也会以各 Agent heartbeats/sources 形式纳入同一快照。
     # 公开卸载入口在备份前复用同一同步器，确保快照口径与当前发布一致。
     MACF_ASSETS_ROOT="${ASSETS_ROOT}" \
     MACF_OPENCLAW_JSON="${OPENCLAW_JSON}" \

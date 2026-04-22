@@ -22,6 +22,8 @@ set -euo pipefail
 # 注：内层 deploy 已切换 heartbeat 源定义到 `heartbeats/sources/*.json` 根目录布局，并在 cron 同步前强制 `--rebuild-from-sources`，
 #     以阻断直接手改 effective-heartbeats.json 引入的漂移；同步时会一并刷新 heartbeat-registry.json 快照。
 # 注：运行时<->资产包的 heartbeat 汇总快照在同步/恢复链路优先文件直拷（effective + registry），仅缺失时回退按 sources 生成。
+# 注：multiAC 包含每日 18:00 的“cron -> 各 Agent heartbeats/sources”内置任务，执行时以运行时实际 cron 配置为准，
+#     并在任务末尾自动触发一次 sync-all-runtime-assets。
 #
 
 REPO_META_URL="${MACF_REPO_META_URL:-https://api.github.com/repos/JingjingChen1/Multi-Agent-Collaboration-Framework}"
