@@ -20,7 +20,7 @@ set -euo pipefail
 # 注：本次 deploy 会同步 agent-lifecycle/normalize-agent-runtime-config.sh 与 route_policy_hints.py，
 #     保障 route-policy 手写误差可在恢复前自动规范化并通过校验。
 # 注：内层 deploy 已切换 heartbeat 源定义到 `heartbeats/sources/*.json` 根目录布局，并在 cron 同步前强制 `--rebuild-from-sources`，
-#     以阻断直接手改 effective-heartbeats.json 引入的漂移。
+#     以阻断直接手改 effective-heartbeats.json 引入的漂移；同步时会一并刷新 heartbeat-registry.json 快照。
 #
 
 REPO_META_URL="${MACF_REPO_META_URL:-https://api.github.com/repos/JingjingChen1/Multi-Agent-Collaboration-Framework}"
