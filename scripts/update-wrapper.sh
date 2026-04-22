@@ -19,6 +19,7 @@ set -euo pipefail
 # 注：update 同步覆盖 normalize-agent-runtime-config.sh + route_policy_hints.py，并由 update 内置 cmp 校验运行时刷新结果。
 # 注：update 默认升级基线为 v2.5.25，且沿用 deploy 的 heartbeat sources 根目录口径（cron 同步前强制 --rebuild-from-sources，
 #     同步时会同时刷新 effective-heartbeats.json 与 heartbeat-registry.json）。
+# 注：资产同步/恢复 heartbeat 快照采用“优先直拷 + 缺失回退生成”策略，避免 effective/registry 在往返同步时产生无关结构漂移。
 # 注：若运行时处于 token 失效清理后的禁用态，内层 update 会先走 deploy 重建缺失目录，再执行完整性校验。
 # 注：MACF_OPENCLAW_BIN 默认优先 ~/.local/bin/openclaw，供远端解析 CLI 与 cron/health 一致。
 #

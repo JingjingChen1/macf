@@ -15,6 +15,7 @@ set -euo pipefail
 #     system/protocol 与 .macf-version 保留用于后续 update 入口判定与重建。
 # 每次执行结束（成功 / 失败 / 跳过）会向 MACF_AUTO_UPGRADE_JOURNAL_FILE 追加一行 TSV：时间、状态、原因。
 # 注：远端 update 阶段 D 会执行 deploy-framework（render、~/.local/bin PATH 片段、registry 等与手动升级一致）；本外壳传入 MACF_OPENCLAW_BIN 优先 ~/.local/bin，避免定时任务环境 PATH 过窄。
+# 注：资产同步/恢复 heartbeat 汇总快照采用“优先直拷 + 缺失回退生成”策略（effective + registry），与手动升级链路保持一致。
 #
 
 REPO_META_URL="${MACF_REPO_META_URL:-https://api.github.com/repos/JingjingChen1/Multi-Agent-Collaboration-Framework}"
