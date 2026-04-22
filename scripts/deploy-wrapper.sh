@@ -24,6 +24,7 @@ set -euo pipefail
 # 注：运行时<->资产包的 heartbeat 汇总快照在同步/恢复链路优先文件直拷（effective + registry），仅缺失时回退按 sources 生成。
 # 注：运行时 cron -> 各 Agent heartbeats/sources 回写已并入 sync-all-runtime-assets：
 #     每次 runtime->assets 同步前都会先执行回写（内部使用 --no-sync-assets，避免递归触发资产同步）。
+# 注：install.sh 已新增“重装前同步资产（禁用态先恢复目录结构）”前置流程；deploy-wrapper 仍只负责 token 校验与分流到远端 deploy-framework。
 #
 
 REPO_META_URL="${MACF_REPO_META_URL:-https://api.github.com/repos/JingjingChen1/Multi-Agent-Collaboration-Framework}"

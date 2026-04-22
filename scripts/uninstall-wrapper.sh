@@ -182,6 +182,8 @@ backup_private_assets_fallback() {
     # sync 时优先复制运行时快照，缺失时再按 sources 生成并落盘到 heartbeats/。
     # 运行时 cron->sources 回写已并入 sync-all-runtime-assets：执行本同步器时会先前置回写，
     # 随后再做 runtime->assets，因此各 Agent heartbeats/sources 会按运行时 cron 事实源一并收敛进快照。
+    # install.sh 的“重装前同步资产（禁用态先恢复目录结构）”属于重装路径；
+    # 公开卸载入口仍按卸载前固定一次同步 + 归档备份执行，不复用重装前置流程。
     # 公开卸载入口在备份前复用同一同步器，确保快照口径与当前发布一致。
     MACF_ASSETS_ROOT="${ASSETS_ROOT}" \
     MACF_OPENCLAW_JSON="${OPENCLAW_JSON}" \
