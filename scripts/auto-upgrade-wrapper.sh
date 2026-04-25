@@ -19,6 +19,7 @@ set -euo pipefail
 # 注：运行时 cron -> 各 Agent heartbeats/sources 回写已并入 sync-all-runtime-assets：
 #     每次 runtime->assets 同步前都会先执行回写（内部使用 --no-sync-assets，避免递归触发资产同步）。
 # 注：install.sh 的“重装前同步资产（禁用态先恢复目录结构）”仅用于人工重装入口；自动升级保持升级链路语义，不触达资产包写入。
+# 注：Poe 默认模型预设由 install 阶段写入（当前为 poe/GPT-5.5, responses）；自动升级复用 update/deploy 语义，不主动覆盖 agents.defaults.model。
 #
 
 REPO_META_URL="${MACF_REPO_META_URL:-https://api.github.com/repos/JingjingChen1/Multi-Agent-Collaboration-Framework}"

@@ -198,6 +198,8 @@ backup_private_assets_fallback() {
   # 统一备份整个 workspace，覆盖 singleAgent 与 LockstepSquad 两类运行时目录。
   # 资产库目录占位（singleAgent/LockstepSquad README）由 init/create 链路维护；兜底备份按现状保留，不做额外改写。
   # 与 restore 口径一致：后续恢复会按 singleAgent/LockstepSquad 作用域强制归位，不读取旧平铺 workspace 定义。
+  # 模型口径与 deploy/update 一致：不在卸载流程改写默认模型；安装阶段写入的 agents.defaults.model
+  # （如 Poe 预设 poe/GPT-5.5, responses）会随 openclaw.json 一并进入兜底备份。
   # 模型凭据口径与 deploy/update 一致：Poe 使用 ${POE_API_KEY} 占位，GitHub PAT 仅存 credentials/*.env；
   # 因此兜底备份也保留 credentials 目录，避免重建后丢失 token 来源。
   copy_path_if_exists "${OPENCLAW_HOME}/workspace" "${snapshot_root}"

@@ -23,6 +23,7 @@ set -euo pipefail
 # 注：运行时 cron -> 各 Agent heartbeats/sources 回写已并入 sync-all-runtime-assets：
 #     每次 runtime->assets 同步前都会先执行回写（内部使用 --no-sync-assets，避免递归触发资产同步）。
 # 注：install.sh 的“重装前同步资产（禁用态先恢复目录结构）”仅用于重装入口；update-wrapper 仍保持升级链路不触达资产包写入。
+# 注：Poe 默认模型预设由 install 阶段写入（当前为 poe/GPT-5.5, responses）；update 链路复用 deploy 语义，不主动覆盖 agents.defaults.model。
 # 注：若运行时处于 token 失效清理后的禁用态，内层 update 会先走 deploy 重建缺失目录，再执行完整性校验。
 # 注：MACF_OPENCLAW_BIN 默认优先 ~/.local/bin/openclaw，供远端解析 CLI 与 cron/health 一致。
 #
