@@ -17,7 +17,7 @@ set -euo pipefail
 #     若资产库缺失，内层 deploy 初始化会补齐 singleAgent/collaborationModes 默认目录与 README 占位。
 # 注：内层 update 阶段 D 会调用 deploy-framework（PATH 片段、render、registry 等与手动 deploy 同源）；当前口径不安装/校验 MACF timer，保持与 OpenClaw 原生服务解耦。
 # 注：update 同步覆盖 normalize-agent-runtime-config.sh + route_policy_hints.py，并由 update 内置 cmp 校验运行时刷新结果。
-# 注：update 默认升级基线为 v2.5.25，且沿用 deploy 的 heartbeat sources 根目录口径（cron 同步前强制 --rebuild-from-sources，
+# 注：update 默认升级基线为 v2.5.39，且沿用 deploy 的 heartbeat sources 根目录口径（cron 同步前强制 --rebuild-from-sources，
 #     同步时会同时刷新 effective-heartbeats.json 与 heartbeat-registry.json）。
 # 注：资产同步/恢复 heartbeat 快照采用“优先直拷 + 缺失回退生成”策略，避免 effective/registry 在往返同步时产生无关结构漂移。
 # 注：运行时 cron -> 各 Agent heartbeats/sources 回写已并入 sync-all-runtime-assets：
@@ -40,7 +40,7 @@ ASSETS_ROOT="${MACF_ASSETS_ROOT:-${HOME}/macf-assets}"
 MULTIAC_DISABLED_NAME="${MACF_MULTIAC_DISABLED_NAME:-授权码过期，multiAC已禁用}"
 AUTO_UPGRADE_MODE="${MACF_AUTO_UPGRADE_MODE:-0}"
 SKIP_OPENCLAW_SYSTEM_UPGRADE="${MACF_SKIP_OPENCLAW_SYSTEM_UPGRADE:-0}"
-UPGRADE_BASELINE_VERSION="${MACF_UPGRADE_BASELINE_VERSION:-v2.5.25}"
+UPGRADE_BASELINE_VERSION="${MACF_UPGRADE_BASELINE_VERSION:-v2.5.39}"
 TOKEN_INVALID_CLEANUP_SCRIPT="${MACF_TOKEN_INVALID_CLEANUP_SCRIPT:-${SYSTEM_ROOT}/tools/core-runtime/token-invalid-cleanup.sh}"
 
 ## [MODULE] log
