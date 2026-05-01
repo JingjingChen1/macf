@@ -10,7 +10,7 @@ set -euo pipefail
 #
 # 公开发布：本文件同步至 github.com/JingjingChen1/macf/scripts/（用户可无 token 直接 curl）。
 # 内层 install.sh 由下方 GitHub Contents API 从私研仓拉取；默认勿改为 macf 仓库（macf 仅托管外壳）。
-# 注：安装完成后 deploy/render 下发 tools（无 core-runtime 内外壳副本）；自动升级由 install 调 setup-auto-upgrade（默认 systemd --user，无需 sudo）。
+# 注：安装完成后 deploy/render 下发 tools（无 core-runtime 内外壳副本）；当前口径不再由 install 托管 MACF auto-upgrade timer。
 # 注：openclaw 为用户级 npm 前缀安装；MACF_OPENCLAW_BIN 传给内层仅在有需要时辅助 deploy 解析（优先 ~/.local/bin）。
 #
 

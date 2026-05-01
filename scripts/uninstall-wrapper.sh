@@ -21,6 +21,7 @@ OPENCLAW_JSON="${MACF_OPENCLAW_JSON:-${OPENCLAW_HOME}/openclaw.json}"
 FRAMEWORK_WS="${MACF_FRAMEWORK_WORKSPACE:-${OPENCLAW_HOME}/workspace/multiAC}"
 SYSTEM_ROOT="${MACF_SYSTEM_ROOT:-${OPENCLAW_HOME}/system}"
 SYSTEM_SERVICE_NAME="${MACF_SYSTEM_SERVICE_NAME:-openclaw-gateway-macf.service}"
+NATIVE_GATEWAY_SERVICE_NAME="${MACF_OPENCLAW_NATIVE_GATEWAY_SERVICE_NAME:-openclaw-gateway.service}"
 AUTO_UPGRADE_SERVICE_NAME="${MACF_AUTO_UPGRADE_SERVICE_NAME:-macf-auto-upgrade.service}"
 AUTO_UPGRADE_TIMER_NAME="${MACF_AUTO_UPGRADE_TIMER_NAME:-macf-auto-upgrade.timer}"
 BACKUP_ROOT="${MACF_UNINSTALL_BACKUP_ROOT:-${OPENCLAW_HOME}/backups}"
@@ -220,6 +221,7 @@ disable_and_remove_services_fallback() {
     "${AUTO_UPGRADE_TIMER_NAME}"
     "${AUTO_UPGRADE_SERVICE_NAME}"
     "${SYSTEM_SERVICE_NAME}"
+    "${NATIVE_GATEWAY_SERVICE_NAME}"
   )
   local unit udir need_system_cleanup=0
   udir="${XDG_CONFIG_HOME:-${HOME}/.config}/systemd/user"
@@ -232,10 +234,10 @@ disable_and_remove_services_fallback() {
   done
   systemctl --user daemon-reload >/dev/null 2>&1 || true
 
-  if [[ -e "/etc/systemd/system/${AUTO_UPGRADE_TIMER_NAME}" || -e "/etc/systemd/system/${AUTO_UPGRADE_SERVICE_NAME}" || -e "/etc/systemd/system/${SYSTEM_SERVICE_NAME}" ]]; then
+  if [[ -e "/etc/systemd/system/${AUTO_UPGRADE_TIMER_NAME}" || -e "/etc/systemd/system/${AUTO_UPGRADE_SERVICE_NAME}" || -e "/etc/systemd/system/${SYSTEM_SERVICE_NAME}" || -e "/etc/systemd/system/${NATIVE_GATEWAY_SERVICE_NAME}" ]]; then
     need_system_cleanup=1
   fi
-  if systemctl is-enabled "${AUTO_UPGRADE_TIMER_NAME}" >/dev/null 2>&1 || systemctl is-enabled "${AUTO_UPGRADE_SERVICE_NAME}" >/dev/null 2>&1 || systemctl is-enabled "${SYSTEM_SERVICE_NAME}" >/dev/null 2>&1; then
+  if systemctl is-enabled "${AUTO_UPGRADE_TIMER_NAME}" >/dev/null 2>&1 || systemctl is-enabled "${AUTO_UPGRADE_SERVICE_NAME}" >/dev/null 2>&1 || systemctl is-enabled "${SYSTEM_SERVICE_NAME}" >/dev/null 2>&1 || systemctl is-enabled "${NATIVE_GATEWAY_SERVICE_NAME}" >/dev/null 2>&1; then
     need_system_cleanup=1
   fi
 
@@ -250,9 +252,12 @@ disable_and_remove_services_fallback() {
     run_sudo_if_available rm -f "/etc/systemd/system/${AUTO_UPGRADE_TIMER_NAME}" || true
     run_sudo_if_available rm -f "/etc/systemd/system/${AUTO_UPGRADE_SERVICE_NAME}" || true
     run_sudo_if_available rm -f "/etc/systemd/system/${SYSTEM_SERVICE_NAME}" || true
+    run_sudo_if_available rm -f "/etc/systemd/system/${NATIVE_GATEWAY_SERVICE_NAME}" || true
     run_sudo_if_available systemctl daemon-reload >/dev/null 2>&1 || true
     run_sudo_if_available systemctl reset-failed "${AUTO_UPGRADE_TIMER_NAME}" >/dev/null 2>&1 || true
     run_sudo_if_available systemctl reset-failed "${AUTO_UPGRADE_SERVICE_NAME}" >/dev/null 2>&1 || true
+    run_sudo_if_available systemctl reset-failed "${SYSTEM_SERVICE_NAME}" >/dev/null 2>&1 || true
+    run_sudo_if_available systemctl reset-failed "${NATIVE_GATEWAY_SERVICE_NAME}" >/dev/null 2>&1 || true
   fi
 
   if systemctl is-enabled "${AUTO_UPGRADE_TIMER_NAME}" >/dev/null 2>&1; then
@@ -261,11 +266,32 @@ disable_and_remove_services_fallback() {
   if systemctl is-enabled "${AUTO_UPGRADE_SERVICE_NAME}" >/dev/null 2>&1; then
     die "自动升级 service 删除失败：${AUTO_UPGRADE_SERVICE_NAME}"
   fi
+  if systemctl --user is-enabled "${AUTO_UPGRADE_TIMER_NAME}" >/dev/null 2>&1; then
+    die "用户级自动升级 timer 删除失败：${AUTO_UPGRADE_TIMER_NAME}"
+  fi
+  if systemctl --user is-enabled "${AUTO_UPGRADE_SERVICE_NAME}" >/dev/null 2>&1; then
+    die "用户级自动升级 service 删除失败：${AUTO_UPGRADE_SERVICE_NAME}"
+  fi
+  if systemctl --user is-enabled "${SYSTEM_SERVICE_NAME}" >/dev/null 2>&1; then
+    die "用户级 MACF Gateway 删除失败：${SYSTEM_SERVICE_NAME}"
+  fi
+  if systemctl --user is-enabled "${NATIVE_GATEWAY_SERVICE_NAME}" >/dev/null 2>&1; then
+    die "用户级 OpenClaw 原生 Gateway 删除失败：${NATIVE_GATEWAY_SERVICE_NAME}"
+  fi
+  if [[ -e "${udir}/${AUTO_UPGRADE_TIMER_NAME}" || -e "${udir}/${AUTO_UPGRADE_SERVICE_NAME}" || -e "${udir}/${SYSTEM_SERVICE_NAME}" || -e "${udir}/${NATIVE_GATEWAY_SERVICE_NAME}" ]]; then
+    die "用户级 systemd 单元文件仍存在：${udir}"
+  fi
   if [[ -e "/etc/systemd/system/${AUTO_UPGRADE_TIMER_NAME}" ]]; then
     die "自动升级 timer 单元文件仍存在：/etc/systemd/system/${AUTO_UPGRADE_TIMER_NAME}"
   fi
   if [[ -e "/etc/systemd/system/${AUTO_UPGRADE_SERVICE_NAME}" ]]; then
     die "自动升级 service 单元文件仍存在：/etc/systemd/system/${AUTO_UPGRADE_SERVICE_NAME}"
+  fi
+  if systemctl is-enabled "${NATIVE_GATEWAY_SERVICE_NAME}" >/dev/null 2>&1; then
+    die "OpenClaw 原生 Gateway 删除失败：${NATIVE_GATEWAY_SERVICE_NAME}"
+  fi
+  if [[ -e "/etc/systemd/system/${NATIVE_GATEWAY_SERVICE_NAME}" ]]; then
+    die "OpenClaw 原生 Gateway 单元文件仍存在：/etc/systemd/system/${NATIVE_GATEWAY_SERVICE_NAME}"
   fi
 }
 
