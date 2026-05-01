@@ -176,7 +176,7 @@ backup_private_assets_fallback() {
   sync_script="${SYSTEM_ROOT}/tools/asset-ops/sync-all-runtime-assets.sh"
   if [[ -f "${sync_script}" ]]; then
     log "卸载前同步运行时资产到私有资产库。"
-    # LockstepSquad 一致性文档按“编队 shared 目录单份快照”策略写入资产库；
+    # 协作模式一致性文档按“模式 shared 目录单份快照”策略写入资产库；
     # 其中 skills 统一收敛到 shared/skills，IDENTITY.md 保持成员独立，不进入 shared。
     # 同步器会清理成员资产中共享目录的空壳（如 runtime/workspace/agent-local）。
     # heartbeat 口径为 B1：sources 单源 + effective/registry 汇总快照；
@@ -196,9 +196,9 @@ backup_private_assets_fallback() {
   copy_path_if_exists "${ASSETS_ROOT}" "${snapshot_root}"
   copy_path_if_exists "${OPENCLAW_JSON}" "${snapshot_root}"
   copy_path_if_exists "${OPENCLAW_HOME}/.env" "${snapshot_root}"
-  # 统一备份整个 workspace，覆盖 singleAgent 与 LockstepSquad 两类运行时目录。
-  # 资产库目录占位（singleAgent/LockstepSquad README）由 init/create 链路维护；兜底备份按现状保留，不做额外改写。
-  # 与 restore 口径一致：后续恢复会按 singleAgent/LockstepSquad 作用域强制归位，不读取旧平铺 workspace 定义。
+  # 统一备份整个 workspace，覆盖 singleAgent 与 collaborationModes 两类运行时目录。
+  # 资产库目录占位（singleAgent/collaborationModes README）由 init/create 链路维护；兜底备份按现状保留，不做额外改写。
+  # 与 restore 口径一致：后续恢复会按 singleAgent/collaborationModes 作用域强制归位，不读取旧平铺 workspace 定义。
   # 模型口径与 deploy/update 一致：不在卸载流程改写默认模型；安装阶段写入的 agents.defaults.model
   # （如 Poe 预设 poe/GPT-5.5, responses）会随 openclaw.json 一并进入兜底备份。
   # 模型凭据口径与 deploy/update 一致：Poe 使用 ${POE_API_KEY} 占位，GitHub PAT 仅存 credentials/*.env；

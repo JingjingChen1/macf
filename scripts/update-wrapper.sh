@@ -14,7 +14,7 @@ set -euo pipefail
 # 注：token-invalid-cleanup 仅清理可重建目录（system/tools|governance|templates）与 multiAC 托管文档；
 #     system/protocol 与 .macf-version 会保留，供 update 识别禁用态最小升级入口。
 # 注：远端 update.sh 不将运行时同步进 ~/macf-assets、不在资产库 git checkpoint；快照请手动 sync-all-runtime-assets。
-#     若资产库缺失，内层 deploy 初始化会补齐 singleAgent/LockstepSquad 默认目录与 README 占位。
+#     若资产库缺失，内层 deploy 初始化会补齐 singleAgent/collaborationModes 默认目录与 README 占位。
 # 注：内层 update 阶段 D 会调用 deploy-framework（PATH 片段、render、registry 等与手动 deploy 同源）；当前口径不安装/校验 MACF timer，保持与 OpenClaw 原生服务解耦。
 # 注：update 同步覆盖 normalize-agent-runtime-config.sh + route_policy_hints.py，并由 update 内置 cmp 校验运行时刷新结果。
 # 注：update 默认升级基线为 v2.5.25，且沿用 deploy 的 heartbeat sources 根目录口径（cron 同步前强制 --rebuild-from-sources，
