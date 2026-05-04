@@ -19,7 +19,7 @@ set -euo pipefail
 # 注：运行时 cron -> 各 Agent heartbeats/sources 回写已并入 sync-all-runtime-assets：
 #     每次 runtime->assets 同步前都会先执行回写（内部使用 --no-sync-assets，避免递归触发资产同步）。
 # 注：install.sh 的“重装前同步资产（禁用态先恢复目录结构）”仅用于人工重装入口；自动升级保持升级链路语义，不触达资产包写入。
-# 注：Poe 默认模型预设由 install 阶段写入（当前为 poe/GPT-5.5, responses）；自动升级复用 update/deploy 语义，不主动覆盖 agents.defaults.model。
+# 注：Poe 默认模型预设由 install 阶段写入（当前为 poe/GPT-5.4, responses）；自动升级复用 update/deploy 语义，不主动覆盖 agents.defaults.model。
 #
 
 REPO_META_URL="${MACF_REPO_META_URL:-https://api.github.com/repos/JingjingChen1/Multi-Agent-Collaboration-Framework}"
@@ -33,7 +33,7 @@ OPENCLAW_JSON="${MACF_OPENCLAW_JSON:-${HOME}/.openclaw/openclaw.json}"
 FRAMEWORK_WS="${MACF_FRAMEWORK_WORKSPACE:-${HOME}/.openclaw/workspace/multiAC}"
 SKIP_OPENCLAW_SYSTEM_UPGRADE="${MACF_AUTO_UPGRADE_SKIP_OPENCLAW_SYSTEM_UPGRADE:-1}"
 # 与内层 update 默认基线一致；若 ~/.openclaw/macf-auto-upgrade.env 中仍留有旧版 MACF_AUTO_UPGRADE_BASELINE_VERSION，会覆盖此处（建议删除该行或重跑 setup-auto-upgrade 以去掉固化基线）。
-UPGRADE_BASELINE_VERSION="${MACF_AUTO_UPGRADE_BASELINE_VERSION:-v2.5.39}"
+UPGRADE_BASELINE_VERSION="${MACF_AUTO_UPGRADE_BASELINE_VERSION:-v2.5.42}"
 LOCK_FILE="${MACF_AUTO_UPGRADE_LOCK_FILE:-${HOME}/.openclaw/locks/macf-auto-upgrade.lock}"
 MULTIAC_DISABLED_NAME="${MACF_MULTIAC_DISABLED_NAME:-授权码过期，multiAC已禁用}"
 TOKEN_INVALID_CLEANUP_SCRIPT="${MACF_TOKEN_INVALID_CLEANUP_SCRIPT:-${SYSTEM_ROOT}/tools/core-runtime/token-invalid-cleanup.sh}"

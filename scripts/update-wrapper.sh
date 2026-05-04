@@ -17,13 +17,13 @@ set -euo pipefail
 #     若资产库缺失，内层 deploy 初始化会补齐 singleAgent/collaborationModes 默认目录与 README 占位。
 # 注：内层 update 阶段 D 会调用 deploy-framework（PATH 片段、render、registry 等与手动 deploy 同源）；当前口径不安装/校验 MACF timer，保持与 OpenClaw 原生服务解耦。
 # 注：update 同步覆盖 normalize-agent-runtime-config.sh + route_policy_hints.py，并由 update 内置 cmp 校验运行时刷新结果。
-# 注：update 默认升级基线为 v2.5.39，且沿用 deploy 的 heartbeat sources 根目录口径（cron 同步前强制 --rebuild-from-sources，
+# 注：update 默认升级基线为 v2.5.42，且沿用 deploy 的 heartbeat sources 根目录口径（cron 同步前强制 --rebuild-from-sources，
 #     同步时会同时刷新 effective-heartbeats.json 与 heartbeat-registry.json）。
 # 注：资产同步/恢复 heartbeat 快照采用“优先直拷 + 缺失回退生成”策略，避免 effective/registry 在往返同步时产生无关结构漂移。
 # 注：运行时 cron -> 各 Agent heartbeats/sources 回写已并入 sync-all-runtime-assets：
 #     每次 runtime->assets 同步前都会先执行回写（内部使用 --no-sync-assets，避免递归触发资产同步）。
 # 注：install.sh 的“重装前同步资产（禁用态先恢复目录结构）”仅用于重装入口；update-wrapper 仍保持升级链路不触达资产包写入。
-# 注：Poe 默认模型预设由 install 阶段写入（当前为 poe/GPT-5.5, responses）；update 链路复用 deploy 语义，不主动覆盖 agents.defaults.model。
+# 注：Poe 默认模型预设由 install 阶段写入（当前为 poe/GPT-5.4, responses）；update 链路复用 deploy 语义，不主动覆盖 agents.defaults.model。
 # 注：若运行时处于 token 失效清理后的禁用态，内层 update 会先走 deploy 重建缺失目录，再执行完整性校验。
 # 注：MACF_OPENCLAW_BIN 默认优先 ~/.local/bin/openclaw，供远端解析 CLI 与 cron/health 一致。
 #
@@ -40,7 +40,7 @@ ASSETS_ROOT="${MACF_ASSETS_ROOT:-${HOME}/macf-assets}"
 MULTIAC_DISABLED_NAME="${MACF_MULTIAC_DISABLED_NAME:-授权码过期，multiAC已禁用}"
 AUTO_UPGRADE_MODE="${MACF_AUTO_UPGRADE_MODE:-0}"
 SKIP_OPENCLAW_SYSTEM_UPGRADE="${MACF_SKIP_OPENCLAW_SYSTEM_UPGRADE:-0}"
-UPGRADE_BASELINE_VERSION="${MACF_UPGRADE_BASELINE_VERSION:-v2.5.39}"
+UPGRADE_BASELINE_VERSION="${MACF_UPGRADE_BASELINE_VERSION:-v2.5.42}"
 TOKEN_INVALID_CLEANUP_SCRIPT="${MACF_TOKEN_INVALID_CLEANUP_SCRIPT:-${SYSTEM_ROOT}/tools/core-runtime/token-invalid-cleanup.sh}"
 
 ## [MODULE] log
